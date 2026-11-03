@@ -48,6 +48,18 @@ observatory serve                                            # web UI at http://
 
 Without a key the visual signal is skipped and the other three still run.
 
+### Three ways to run it
+
+The analyzer asks **how do you want to run it?** before asking for a video:
+
+| Mode | For whom | What happens |
+|---|---|---|
+| **My own key** (free) | Anyone with a Groq or Gemini key | The key is checked first (`POST /api/keys/check`), which lists the vision models it can use, so a wrong key fails in a second, not after a download. Used for that analysis only, never stored. |
+| **Kaggle** (no install) | Anyone with a Kaggle account | [`notebooks/analyze_on_kaggle.ipynb`](notebooks/analyze_on_kaggle.ipynb) opens on Kaggle straight from GitHub: Copy & Edit, add a free key under *Add-ons → Secrets*, paste the link, Run all. The report renders in the notebook. |
+| **Site demo** | Visitors of a deployment that has its own key | Uses the host's key under the daily limit. Only shown when the server has one. |
+
+Before submitting, the form says which signals will run, so a missing key never looks like a broken tool. The static GitHub Pages copy offers Kaggle and running locally.
+
 ## Benchmarks
 
 How well can each vision model tell AI video from real footage, looking only at the frames? [docs/benchmarks.md](docs/benchmarks.md) compares providers on a labelled set ([eval/dataset.csv](eval/dataset.csv)): AI clips whose uploader names the generator, and real videos uploaded before 2022. Every model sees the same cached keyframes and nothing else, and is scored on AUC, real videos wrongly flagged as AI, AI videos caught, calibration, speed and cost. The same table is on the site at `/benchmarks`.
