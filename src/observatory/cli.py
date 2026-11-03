@@ -75,6 +75,45 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_bench(args: argparse.Namespace) -> int:
+    import observatory.detect  # noqa: F401  (loads .env)
+    from observatory.bench import runner
+    from observatory.detect.vision import PROVIDERS, has_key, model_for
+
+    rows = runner.load_dataset()
+    if args.limit:
+        rows = rows[: args.limit]
+    if args.step == "prepare":
+        runner.prepare(rows)
+    elif args.step == "run":
+        from observatory.bench import detectors
+
+        names = [*PROVIDERS, *detectors.DETECTORS] if args.provider == "all" else [args.provider]
+        for name in names:
+            if name in detectors.DETECTORS:
+                if not detectors.has_keys(name):
+                    print(f"[skip] {name}: needs {' and '.join(detectors.DETECTORS[name])}")
+                    continue
+                model = {"sightengine": "genai", "hive": "ai-generated-image-detection"}[name]
+                print(f"== {name} / {model}")
+                runner.run(name, model, rows, retry_errors=args.retry_errors, assess_with=detectors.assess_with)
+                continue
+            model = args.model or model_for(name)
+            if not has_key(name) or not model:
+                print(f"[skip] {name}: needs {' or '.join(PROVIDERS[name].key_env)}"
+                      + ("" if model else f" and {PROVIDERS[name].model_env}"))
+                continue
+            print(f"== {name} / {model}")
+            runner.run(name, model, rows, retry_errors=args.retry_errors)
+    else:
+        for m in runner.report(rows):
+            s = m["scores"] or {}
+            print(f"{m['provider']}/{m['model']}: AUC={s.get('auc')} FPR={s.get('false_positive_rate')} "
+                  f"recall={s.get('recall_ai')} failures={m['failures']}/{m['attempted']}")
+        print("wrote docs/benchmarks.md and docs/benchmarks.json")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -105,6 +144,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--reports-dir", default="data/reports")
     p.add_argument("--refresh", action="store_true", help="re-run even if a report exists")
     p.set_defaults(func=cmd_analyze)
+
+    p = sub.add_parser("bench", help="benchmark the visual signal across vision models")
+    p.add_argument("step", choices=["prepare", "run", "report"])
+    p.add_argument("--provider", default="all", help="groq, anthropic, openai, gemini, sightengine, hive or all")
+    p.add_argument("--model", help="override the provider's model")
+    p.add_argument("--limit", type=int, help="only the first N dataset rows (smoke test)")
+    p.add_argument("--retry-errors", action="store_true", help="re-run rows that failed before")
+    p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("serve", help="run the web front end")
     p.add_argument("--host", default="127.0.0.1")

@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="card" style="margin-bottom:20px">
+  <strong>Do AI-video detectors actually work?</strong>
+  <span class="muted">We test commercial detectors and vision models on the same labelled videos, including Brazilian content, and count how often they accuse real footage.</span>
+  <a href="/benchmarks">See the benchmark →</a>
+</div>
 <h1>Is this video AI-generated?</h1>
-<p class="muted">Paste a public YouTube, TikTok or Instagram link. The analyzer combines the platform label, content credentials, the caption and a frame-by-frame visual check, and shows the evidence behind its estimate.</p>
+<p class="muted">Paste a public YouTube, TikTok or Instagram link. The analyzer combines the platform label, content credentials, the caption and a frame-by-frame visual check, and shows the evidence behind its estimate. <a href="/benchmarks">How accurate is it?</a></p>
 
 {% if allow_live %}
 <form class="analyze" method="post" action="/analyze" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Analyzing… (up to a minute)';">

@@ -1,0 +1,4 @@
+{
+  "_comment": "USD per 1M tokens as [input, output], keyed provider/model. Check the provider's pricing page before trusting a cost column; add a line for each model you benchmark.",
+  "anthropic/claude-opus-5-5": [4.0, 20.0]
+}

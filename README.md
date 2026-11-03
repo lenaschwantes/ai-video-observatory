@@ -1,10 +1,13 @@
 # AI Video Observatory
 
-**Paste a video link, get an estimate of whether it was AI-generated, with the evidence behind it.**
+**An open test of AI-video detectors, commercial and open, with Brazilian content and one priority: never accuse a real video.**
 
-Detecting AI video is unreliable when it rests on one signal: platforms strip metadata, watermark removers are a click away, and detection models fall behind every new generator. This project combines several independent signals, shows what each one found and says *inconclusive* when they disagree, instead of guessing.
+Commercial detectors advertise 98%+ accuracy, but the numbers come from the vendors themselves, and independent tests have caught them flagging real footage as fake. This project measures them in the open:
 
-> Status: **v0, working.** The weights are hand-set and not yet calibrated; see the roadmap. Treat results as a triage aid, never as proof.
+1. **[Benchmarks](docs/benchmarks.md)**: commercial detectors (Sightengine, Hive) and general vision models (Groq, Claude, GPT, Gemini) scored on the same labelled videos, global and Brazilian, with real videos wrongly flagged as AI as the headline number.
+2. **Analyzer**: paste a link and get an estimate with the evidence behind it, combining several independent signals and saying *inconclusive* instead of guessing.
+
+> Status: **working, early.** The labelled set is small and the analyzer's weights are not yet fitted to it; see the roadmap. Treat results as a triage aid, never as proof.
 
 ## What it checks
 
@@ -41,6 +44,24 @@ observatory serve                                            # web UI at http://
 ```
 
 Without a key the visual signal is skipped and the other three still run.
+
+## Benchmarks
+
+How well can each vision model tell AI video from real footage, looking only at the frames? [docs/benchmarks.md](docs/benchmarks.md) compares providers on a labelled set ([eval/dataset.csv](eval/dataset.csv)): AI clips whose uploader names the generator, and real videos uploaded before 2022. Every model sees the same cached keyframes and nothing else, and is scored on AUC, real videos wrongly flagged as AI, AI videos caught, calibration, speed and cost. The same table is on the site at `/benchmarks`.
+
+```bash
+pip install -e ".[detect,bench]"
+observatory bench prepare                  # download once, keep keyframes, delete videos
+observatory bench run --provider all       # every provider with a key (and a model) in .env
+observatory bench report                   # writes docs/benchmarks.md and .json
+```
+
+Supported:
+
+- **Vision models**: Groq, Anthropic, OpenAI and Gemini. OpenAI and Gemini need the model name in `OPENAI_VISION_MODEL` / `GEMINI_VISION_MODEL`.
+- **Commercial detectors**: Sightengine (`SIGHTENGINE_API_USER`, `SIGHTENGINE_API_SECRET`, free tier) and Hive, through NVIDIA's hosted endpoint (`NVIDIA_API_KEY`). Detectors score each keyframe and the video score is their mean in log-odds.
+
+The dataset has a Brazilian subset (`region=br`): AI clips by Brazilian creators (fake TV reports, church sketches, ads) paired with real local news, church services and vlogs, to test whether detectors do worse on content they were not built around. Runs resume after interruptions; `--retry-errors` re-runs failed rows.
 
 ## Deploy
 

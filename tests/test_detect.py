@@ -96,6 +96,14 @@ def test_pipeline_writes_report_keeps_only_cited_frames(tmp_path):
     assert visual.evidence[0].frame == report.frames[0].file
 
 
+def test_frames_are_written_under_non_ascii_paths(tmp_path):
+    from observatory.detect.frames import extract_frames
+
+    out = tmp_path / "Área de Trabalho"
+    frames = extract_frames(make_video(tmp_path / "v.mp4"), out)
+    assert frames and all((out / f.file).stat().st_size > 0 for f in frames)
+
+
 def test_cached_report_is_reused(tmp_path):
     calls = []
 

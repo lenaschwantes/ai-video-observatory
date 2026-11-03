@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir ".[detect]"
 USER app
 ENV REPORTS_DIR=/tmp/reports \
     EXAMPLES_DIR=/app/examples/reports \
+    BENCHMARKS_FILE=/app/docs/benchmarks.json \
     PORT=7860
 EXPOSE 7860
 CMD ["sh", "-c", "uvicorn observatory.detect.web:app --host 0.0.0.0 --port ${PORT}"]

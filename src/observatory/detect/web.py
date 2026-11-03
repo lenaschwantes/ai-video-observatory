@@ -6,6 +6,7 @@ serve only the bundled example reports."""
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import time
@@ -23,6 +24,7 @@ from observatory.detect.pipeline import analyze, load_report
 
 REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", "data/reports"))
 EXAMPLES_DIR = Path(os.environ.get("EXAMPLES_DIR", Path(__file__).resolve().parents[3] / "examples" / "reports"))
+BENCHMARKS_FILE = Path(os.environ.get("BENCHMARKS_FILE", Path(__file__).resolve().parents[3] / "docs" / "benchmarks.json"))
 ALLOW_LIVE = os.environ.get("ALLOW_LIVE", "1") != "0"
 PER_IP_DAILY = int(os.environ.get("LIVE_LIMIT_PER_IP", "3"))
 GLOBAL_DAILY = int(os.environ.get("LIVE_LIMIT_PER_DAY", "30"))
@@ -91,6 +93,12 @@ def run_analysis(request: Request, url: str = Form(...)):
     except FetchError as exc:
         return _index(request, f"Could not download the video: {exc}", 422)
     return RedirectResponse(f"/report/{report.slug}", status_code=303)
+
+
+@app.get("/benchmarks", response_class=HTMLResponse)
+def benchmarks(request: Request):
+    data = json.loads(BENCHMARKS_FILE.read_text(encoding="utf-8")) if BENCHMARKS_FILE.exists() else None
+    return templates.TemplateResponse(request, "benchmarks.html", {"b": data})
 
 
 @app.get("/report/{slug}", response_class=HTMLResponse)

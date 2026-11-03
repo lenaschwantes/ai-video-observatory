@@ -46,7 +46,12 @@ def extract_frames(video: Path, out_dir: Path, max_frames: int = MAX_FRAMES) -> 
         if w > MAX_WIDTH:
             img = cv2.resize(img, (MAX_WIDTH, int(h * MAX_WIDTH / w)))
         name = f"frame_{i:02d}.jpg"
-        cv2.imwrite(str(out_dir / name), img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        # imencode + write_bytes instead of imwrite: OpenCV silently fails on
+        # non-ASCII paths on Windows.
+        ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if not ok:
+            continue
+        (out_dir / name).write_bytes(buf.tobytes())
         frames.append(Frame(index=len(frames), timestamp=round(t, 2), file=name))
     cap.release()
     return frames

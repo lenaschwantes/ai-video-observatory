@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Benchmarks · AI Video Observatory{% endblock %}
+{% macro pct(x) %}{% if x is none %}n/a{% else %}{{ (x * 100) | round | int }}%{% endif %}{% endmacro %}
+{% macro num(x) %}{% if x is none %}n/a{% else %}{{ '%.2f' | format(x) }}{% endif %}{% endmacro %}
+{% block content %}
+<p><a href="/">← Analyzer</a></p>
+<h1>How good is the visual check?</h1>
+{% if not b or not b.models %}
+<p class="muted">No benchmark has been run yet.</p>
+{% else %}
+<p class="muted">{{ b.dataset.videos }} labelled videos ({{ b.dataset.ai }} AI-generated, {{ b.dataset.real }} real). Every model sees the same keyframes and nothing else: no title, caption or tags. Generated {{ b.generated_at[:10] }}.</p>
+
+<div class="card" style="overflow-x:auto; margin-top:16px; padding:0">
+<table style="width:100%; border-collapse:collapse; font-size:.92rem">
+  <thead>
+    <tr style="text-align:left">
+      <th style="padding:10px 12px">Model</th>
+      <th style="padding:10px 12px" title="0.5 is a coin flip, 1.0 is perfect">AUC</th>
+      <th style="padding:10px 12px" title="Real videos scored as likely AI: the costly error">Real flagged as AI</th>
+      <th style="padding:10px 12px">AI caught</th>
+      <th style="padding:10px 12px">Inconclusive</th>
+      <th style="padding:10px 12px" title="Lower is better">Calibration error</th>
+      <th style="padding:10px 12px">s / video</th>
+      <th style="padding:10px 12px">Cost / 100</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for m in b.models %}{% set s = m.scores or {} %}
+    <tr style="border-top:1px solid var(--border)">
+      <td style="padding:10px 12px"><strong>{{ m.provider }}</strong><br><code class="muted" style="font-size:.8rem">{{ m.model }}</code></td>
+      <td style="padding:10px 12px">{{ num(s.auc) }}</td>
+      <td style="padding:10px 12px">{{ pct(s.false_positive_rate) }}</td>
+      <td style="padding:10px 12px">{{ pct(s.recall_ai) }}</td>
+      <td style="padding:10px 12px">{{ pct(s.inconclusive_rate) }}</td>
+      <td style="padding:10px 12px">{{ num(s.ece) }}</td>
+      <td style="padding:10px 12px">{{ m.seconds_per_video if m.seconds_per_video is not none else 'n/a' }}</td>
+      <td style="padding:10px 12px">{% if m.cost_per_100_videos_usd is not none %}${{ '%.2f' | format(m.cost_per_100_videos_usd) }}{% else %}n/a{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Reading it honestly</h2>
+<ul class="muted">
+  <li>The set is small, so a few points of difference between models is noise.</li>
+  <li>"Real flagged as AI" matters most: a false accusation harms a real creator.</li>
+  <li>AI videos come from uploaders who name the generator; real ones were uploaded before 2022. Real videos skew older and lower resolution, which the full report breaks down.</li>
+</ul>
+<p><a href="https://github.com/lenaschwantes/ai-video-observatory/blob/main/docs/benchmarks.md">Full report and method</a></p>
+{% endif %}
+{% endblock %}
