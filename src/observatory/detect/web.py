@@ -12,21 +12,22 @@ import html
 import json
 import os
 import shutil
+import tempfile
 import threading
 import time
 import uuid
 from collections import defaultdict
 from pathlib import Path
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from observatory.detect import i18n
-from observatory.detect.fetch import FetchError, check_url
+from observatory.detect.fetch import MAX_BYTES, VIDEO_SUFFIXES, FetchError, check_url
 from observatory.detect.models import Report
-from observatory.detect.pipeline import AI_THRESHOLD, HUMAN_THRESHOLD, analyze, load_report
+from observatory.detect.pipeline import AI_THRESHOLD, HUMAN_THRESHOLD, analyze, analyze_file, load_report
 from observatory.detect.vision import PROVIDERS, assess_with
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -214,14 +215,45 @@ def _parse_byok(provider: str, model: str, key: str, pt: bool) -> BYOK | None:
     return BYOK(provider, model, key)
 
 
-def _start_job(url: str, byok: BYOK | None = None) -> str:
+def _save_upload(upload: UploadFile) -> Path:
+    """Stream an upload to a private temp dir, enforcing type and size."""
+    suffix = Path(upload.filename or "").suffix.lower()
+    if suffix not in VIDEO_SUFFIXES:
+        raise FetchError(f"unsupported file type; use {', '.join(VIDEO_SUFFIXES)}")
+    target = Path(tempfile.mkdtemp(prefix="observatory-upload-")) / f"upload{suffix}"
+    size = 0
+    with target.open("wb") as out:
+        while chunk := upload.file.read(1 << 20):
+            size += len(chunk)
+            if size > MAX_BYTES:
+                out.close()
+                shutil.rmtree(target.parent, ignore_errors=True)
+                raise FetchError(f"file larger than {MAX_BYTES // (1024 * 1024)} MB")
+            out.write(chunk)
+    if size == 0:
+        shutil.rmtree(target.parent, ignore_errors=True)
+        raise FetchError("empty file")
+    return target
+
+
+def _run(url: str, upload: Path | None, **kwargs) -> Report:
+    """Analyze a link or a saved upload; an upload is deleted afterwards."""
+    if upload is None:
+        return analyze(url, REPORTS_DIR, **kwargs)
+    try:
+        return analyze_file(upload, REPORTS_DIR, **kwargs)
+    finally:
+        shutil.rmtree(upload.parent, ignore_errors=True)
+
+
+def _start_job(url: str, byok: BYOK | None = None, upload: Path | None = None) -> str:
     job_id = uuid.uuid4().hex[:12]
     job = _jobs[job_id] = {"stage": "download", "slug": None, "error": None}
     kwargs = {"assessor": byok.assessor()} if byok else {}
 
     def work():
         try:
-            report = analyze(url, REPORTS_DIR, progress=lambda s: job.update(stage=s), **kwargs)
+            report = _run(url, upload, progress=lambda s: job.update(stage=s), **kwargs)
             job.update(stage="done", slug=report.slug)
         except Exception as exc:  # shown to the visitor, so keep it short
             msg = str(exc)
@@ -250,7 +282,8 @@ def job_status(request: Request, job_id: str):
 @app.post("/analyze")
 def run_analysis(
     request: Request,
-    url: str = Form(...),
+    url: str = Form(""),
+    file: UploadFile | None = File(None),
     key_provider: str = Form(""),
     key_model: str = Form(""),
     api_key: str = Form(""),
@@ -273,10 +306,13 @@ def run_analysis(
     # allowed even when the host switched it off, under a looser limit.
     if not ALLOW_LIVE and not (byok and ALLOW_BYOK):
         return fail(t("live_off"), 403)
-    try:
-        url = check_url(url)
-    except FetchError:
-        return fail("Só links públicos do YouTube, TikTok ou Instagram." if pt else "Only public YouTube, TikTok or Instagram links.", 400)
+    has_file = file is not None and bool(file.filename)
+    if not has_file:
+        try:
+            url = check_url(url)
+        except FetchError:
+            return fail("Só links públicos do YouTube, TikTok, Instagram ou X, ou um arquivo de vídeo." if pt
+                        else "Only public YouTube, TikTok, Instagram or X links, or a video file.", 400)
     ip = request.client.host if request.client else "unknown"
     bucket = f"byok:{ip}" if byok else ip
     if not _within_limits(bucket, BYOK_PER_IP_DAILY if byok else PER_IP_DAILY, count_global=not byok):
@@ -285,10 +321,16 @@ def run_analysis(
     if not byok:
         _usage["*"].append(time.time())
 
+    upload = None
+    if has_file:
+        try:
+            upload = _save_upload(file)
+        except FetchError as exc:
+            return fail(("Arquivo recusado: " if pt else "File rejected: ") + str(exc), 400)
     if htmx:
-        return _progress(request, _start_job(url, byok))
+        return _progress(request, _start_job(url, byok, upload))
     try:
-        report = analyze(url, REPORTS_DIR, **({"assessor": byok.assessor()} if byok else {}))
+        report = _run(url, upload, **({"assessor": byok.assessor()} if byok else {}))
     except FetchError as exc:
         msg = str(exc)
         return fail(("Não foi possível baixar o vídeo: " if pt else "Could not download the video: ") + (byok.scrub(msg) if byok else msg)[:200], 422)

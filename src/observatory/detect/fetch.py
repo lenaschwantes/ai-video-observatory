@@ -2,18 +2,39 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
 import re
 from pathlib import Path
 from urllib.parse import urlparse
 
 from observatory.detect.models import VideoInfo
 
-ALLOWED_HOSTS = ("youtube.com", "youtu.be", "tiktok.com", "instagram.com")
+ALLOWED_HOSTS = ("youtube.com", "youtu.be", "tiktok.com", "instagram.com", "x.com", "twitter.com")
+VIDEO_SUFFIXES = (".mp4", ".mov", ".m4v", ".webm", ".mkv")
 MAX_BYTES = 200 * 1024 * 1024
+
+
+LOGIN_HINTS = ("login required", "log in", "rate-limit reached", "cookies")
+LOGIN_MESSAGE = (
+    "the platform required a login for this video (common on Instagram and X). "
+    "Set YTDLP_COOKIES to a cookies.txt from a secondary account, or try another link"
+)
 
 
 class FetchError(RuntimeError):
     pass
+
+
+def cookies_file() -> str | None:
+    """Path from YTDLP_COOKIES, if it points to an existing file."""
+    path = os.environ.get("YTDLP_COOKIES", "").strip()
+    return path if path and Path(path).is_file() else None
+
+
+def friendly_error(message: str) -> str:
+    """Turn yt-dlp's login/rate-limit errors into one clear sentence."""
+    return LOGIN_MESSAGE if any(h in message.lower() for h in LOGIN_HINTS) else message
 
 
 def check_url(url: str) -> str:
@@ -26,6 +47,24 @@ def check_url(url: str) -> str:
 
 def slugify(platform: str, video_id: str) -> str:
     return re.sub(r"[^a-z0-9_-]+", "-", f"{platform}-{video_id}".lower()).strip("-")
+
+
+def fetch_local(path: Path) -> tuple[VideoInfo, Path]:
+    """Metadata for a video file on disk. The id is a content hash, so the
+    same file uploaded twice hits the cached report."""
+    path = Path(path)
+    if not path.is_file():
+        raise FetchError(f"file not found: {path.name}")
+    if path.suffix.lower() not in VIDEO_SUFFIXES:
+        raise FetchError(f"unsupported file type; use {', '.join(VIDEO_SUFFIXES)}")
+    if path.stat().st_size > MAX_BYTES:
+        raise FetchError(f"file larger than {MAX_BYTES // (1024 * 1024)} MB")
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    meta = VideoInfo(url="", platform="upload", video_id=digest.hexdigest()[:16], title=path.name)
+    return meta, path
 
 
 def fetch(url: str, workdir: Path) -> tuple[VideoInfo, Path]:
@@ -43,12 +82,14 @@ def fetch(url: str, workdir: Path) -> tuple[VideoInfo, Path]:
         "noprogress": True,
         "no_warnings": True,
     }
+    if cookies := cookies_file():
+        opts["cookiefile"] = cookies
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(check_url(url), download=True)
             path = Path(ydl.prepare_filename(info))
     except yt_dlp.utils.DownloadError as exc:
-        raise FetchError(str(exc)) from exc
+        raise FetchError(friendly_error(str(exc))) from exc
     if not path.exists():
         raise FetchError("video could not be downloaded")
     meta = VideoInfo(

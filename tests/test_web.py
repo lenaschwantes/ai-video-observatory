@@ -158,3 +158,29 @@ def test_visitor_key_allows_analysis_when_live_is_off(client, monkeypatch, tmp_p
 def test_invalid_visitor_key_input_is_rejected(client, data):
     resp = client.post("/analyze", data={"url": "https://www.youtube.com/watch?v=x", **data}, headers={"HX-Request": "true"})
     assert 'class="error"' in resp.text and SECRET not in resp.text
+
+
+def test_upload_runs_analysis_and_deletes_the_file(client, tmp_path, monkeypatch):
+    report = _report(tmp_path)
+    seen = {}
+
+    def fake_analyze_file(path, reports_dir, **kwargs):
+        seen["path"] = path
+        assert path.read_bytes() == b"fake video"
+        return report
+
+    monkeypatch.setattr(web, "analyze_file", fake_analyze_file)
+    resp = client.post("/analyze", files={"file": ("clip.mp4", b"fake video", "video/mp4")}, follow_redirects=False)
+    assert resp.status_code == 303 and resp.headers["location"] == "/report/youtube-x"
+    assert not seen["path"].exists()  # upload removed after analysis
+
+
+def test_upload_rejects_other_file_types(client):
+    resp = client.post("/analyze", files={"file": ("notes.txt", b"hi", "text/plain")},
+                       headers={"HX-Request": "true"})
+    assert 'class="error"' in resp.text
+
+
+def test_no_link_and_no_file_is_rejected(client):
+    resp = client.post("/analyze", data={"url": ""}, headers={"HX-Request": "true"})
+    assert 'class="error"' in resp.text
