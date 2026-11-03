@@ -14,19 +14,21 @@ from observatory.detect.frames import extract_frames
 from observatory.detect.models import Report, Signal, Verdict
 from observatory.detect.signals import platform_label_signal, provenance_signal, text_signal
 from observatory.detect.vision import assess, visual_signal
+from observatory.learn.weights import DEFAULT, Weights, load_current
 
-METHOD_VERSION = "v0-heuristic"
 AI_THRESHOLD = 0.75
 HUMAN_THRESHOLD = 0.25
 
 
-def combine(signals: list[Signal]) -> tuple[float, Verdict]:
-    """Sum the log-likelihood ratios onto even prior odds. With no informative
-    signal the answer is "inconclusive", never a guess."""
+def combine(signals: list[Signal], weights: Weights = DEFAULT) -> tuple[float, Verdict]:
+    """Weighted sum of the log-likelihood ratios on even prior odds; the weights
+    are learned from curated feedback (see observatory.learn). With no
+    informative signal the answer is "inconclusive", never a guess."""
     informative = [s for s in signals if s.available and abs(s.llr) >= 0.2]
-    p = 1 / (1 + math.exp(-sum(s.llr for s in informative)))
     if not informative:
         return 0.5, Verdict.INCONCLUSIVE
+    z = weights.bias + sum(weights.weight(s.name) * s.llr for s in informative)
+    p = 1 / (1 + math.exp(-z))
     if p >= AI_THRESHOLD:
         return p, Verdict.LIKELY_AI
     if p <= HUMAN_THRESHOLD:
@@ -61,7 +63,8 @@ def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch
         signals.append(visual_signal(frames, out_dir, assessor=assessor))
     # leaving the with-block deletes the downloaded video
 
-    probability, verdict = combine(signals)
+    weights = load_current()
+    probability, verdict = combine(signals, weights)
     cited = {e.frame for s in signals for e in s.evidence if e.frame}
     for f in frames:
         if f.file not in cited:
@@ -74,7 +77,7 @@ def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch
         verdict=verdict,
         signals=signals,
         frames=[f for f in frames if f.file in cited],
-        method_version=METHOD_VERSION,
+        method_version=weights.version,
     )
     (out_dir / "report.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
     return report
