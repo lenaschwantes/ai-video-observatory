@@ -1,19 +1,27 @@
 {% extends "base.html" %}
 {% from "_ranking.html" import ranking with context %}
-{% block title %}{{ t('nav_ranking') }} · {{ t('site_name') }}{% endblock %}
+{% block title %}{{ t('nav_research') }} · {{ t('site_name') }}{% endblock %}
 {% block head %}<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script><script src="/static/charts.js"></script>{% endblock %}
 {% macro pct(x) %}{% if x is none %}n/a{% else %}{{ (x * 100) | round | int }}%{% endif %}{% endmacro %}
 {% macro num(x) %}{% if x is none %}n/a{% else %}{{ '%.2f' | format(x) }}{% endif %}{% endmacro %}
 {% block content %}
 <div class="wrap">
   <section class="block" style="padding-top:48px">
-    <div class="kicker">{{ t('nav_ranking') }}{% if b.ready and b.generated_at %} · {{ t('updated') }} {{ b.generated_at }}{% endif %}</div>
+    <div class="kicker">{{ t('nav_research') }}{% if b.ready and b.generated_at %} · {{ t('updated') }} {{ b.generated_at }}{% endif %}</div>
     <h1 class="prose">{{ t('headline') }}</h1>
+    <p class="dek">{{ t('dek') }}</p>
     {% if not b.ready %}
     <div class="chart"><h3>{{ t('pending_title') }}</h3>
       <p class="muted" style="margin:0">{{ t('pending_body', videos=b.dataset.videos, ai=b.dataset.ai, real=b.dataset.real, br=b.dataset.br) }}</p></div>
     {% else %}
-    <ol class="dek" style="padding-left:1.2em; margin:0 0 28px">
+    <div class="hero-num reveal">
+      <span class="value" data-countup data-value="{{ (b.worst.fpr * 100) | round | int }}" data-suffix="%">{{ (b.worst.fpr * 100) | round | int }}%</span>
+      <span class="caption">
+        {% if b.worst.real_flagged is not none and b.worst.n_real %}{{ t('hero_caption_n', k=b.worst.real_flagged, n=b.worst.n_real, name=b.worst.name) }}{% else %}{{ t('hero_caption', name=b.worst.name) }}{% endif %}<br>
+        <span class="muted">{{ t('hero_best', name=b.best.name, value=((b.best.fpr * 100) | round | int | string) ~ '%') }}</span>
+      </span>
+    </div>
+    <ol class="dek" style="padding-left:1.2em; margin:24px 0 28px">
       <li>{{ t('step_1', videos=b.dataset.videos, ai=b.dataset.ai, real=b.dataset.real) }}</li>
       <li>{{ t('step_2') }}</li>
       <li>{{ t('step_3') }}</li>
@@ -96,3 +104,4 @@
   </section>
 </div>
 {% endblock %}
+{% block scripts %}<script>document.querySelectorAll('[data-countup]').forEach((el) => window.d3 && countUp(el));</script>{% endblock %}

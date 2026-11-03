@@ -27,6 +27,13 @@
   .timeline .mark .n { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: .68rem; font-weight: 700; color: var(--ink); }
   .frame figcaption .txt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .frame figcaption.open .txt { -webkit-line-clamp: unset; }
+  .verdict-hero { border-top: 6px solid var(--muted); }
+  .verdict-hero.likely_ai { border-top-color: var(--ai); } .verdict-hero.likely_human { border-top-color: var(--human); }
+  ul.clues { padding-left: 0; list-style: none; display: grid; gap: 8px; }
+  ul.clues li { padding: 10px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--ring); border-left: 4px solid var(--muted); }
+  ul.clues li.ai { border-left-color: var(--ai); } ul.clues li.human { border-left-color: var(--human); }
+  ul.next { padding-left: 0; list-style: none; display: grid; gap: 10px; font-size: 1.05rem; }
+  details.tech > summary { cursor: pointer; font-weight: 600; color: var(--ink-2); }
   .more { border: 0; background: none; padding: 4px 0; color: var(--accent); font: inherit; font-size: .82rem; cursor: pointer; }
   .tl-axis { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); }
   .signal { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 18px 0; border-top: 1px solid var(--grid); }
@@ -45,21 +52,15 @@
 {% block content %}
 {% set p = (r.probability * 100) | round | int %}
 <div class="wrap">
-  <section class="block" style="padding-top:36px">
-    <p><a href="/#analisar">{{ t('back_analyze') }}</a></p>
-    <div class="kicker">{{ r.video.platform }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %}</div>
-    <h1 class="prose" style="font-size:clamp(1.8rem,4.5vw,2.8rem)">{{ r.video.title or r.slug }}</h1>
-    {% if r.video.url %}<p class="muted"><a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">{{ t('original') }} ↗</a></p>{% endif %}
+  <section class="block" style="padding-top:28px">
+    <p><a href="/#analisar">← {{ t('check_another') }}</a></p>
+    <p class="muted" style="margin:0 0 6px">{{ r.video.platform }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %} · {{ r.video.title or r.slug }}{% if r.video.url %} · <a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">{{ t('original') }} ↗</a>{% endif %}</p>
 
-    <div class="chart" style="margin-top:24px; padding:28px">
-      <div class="verdict">
-        <div class="big"><span data-countup data-value="{{ p }}" data-suffix="%">{{ p }}%</span></div>
-        <div>
-          <span class="pill {{ r.verdict.value }}" style="font-size:.95rem">{{ t('verdict_' ~ r.verdict.value) }}</span>
-          <p class="muted" style="margin:8px 0 0">{{ t('probability_label') }}</p>
-        </div>
-      </div>
-      <div class="pbar" role="img" aria-label="{{ p }}% — {{ t('verdict_' ~ r.verdict.value) }}">
+    <div class="chart verdict-hero {{ r.verdict.value }}" style="margin-top:12px; padding:28px">
+      <span class="pill {{ r.verdict.value }}" style="font-size:.95rem">{{ t('verdict_' ~ r.verdict.value) }}</span>
+      <h1 style="font-size:clamp(1.8rem,5vw,2.8rem); margin:14px 0 10px">{{ t('verdict_sentence_' ~ r.verdict.value) }}</h1>
+      <p class="dek" style="margin:0">{{ t('verdict_explain_' ~ r.verdict.value) }}</p>
+      <div class="pbar" role="img" aria-label="{{ t('chance', p=p) }}">
         <div class="zones">
           <div class="z-h" style="width:{{ (human_threshold * 100) | int }}%"></div>
           <div class="z-i" style="width:{{ ((ai_threshold - human_threshold) * 100) | int }}%"></div>
@@ -72,9 +73,53 @@
           <span style="flex:1">{{ t('zone_ai') }}</span>
         </div>
       </div>
+      <p class="muted" style="margin:0; font-size:.92rem"><strong data-countup data-value="{{ p }}" data-suffix="%">{{ p }}%</strong> {{ t('chance', p=p).split(' ', 1)[1] }}</p>
+    </div>
+  </section>
 
+  {% set framed = [] %}{% set loose = [] %}
+  {% for s in r.signals %}{% for e in s.evidence %}{% if e.frame %}{% set _ = framed.append(e) %}{% elif s.available %}{% set _ = loose.append(e) %}{% endif %}{% endfor %}{% endfor %}
+  <section class="block reveal">
+    <h2>{{ t('why_title') }}</h2>
+    {% if loose %}
+    <ul class="clues">
+      {% for e in loose %}<li class="{{ e.direction.value }}"><strong>{{ t('clue_' ~ ('real' if e.direction.value == 'human' else e.direction.value)) }}:</strong> {{ ev(e.text) }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if framed %}
+    <p class="sub">{{ t('zoom_hint') }}</p>
+    <div class="frames" id="frames">
+      {% for e in framed %}
+      <figure class="frame" data-t="{{ (e.timestamp or 0) | round(1) }}">
+        <a href="/media/{{ r.slug }}/{{ e.frame }}" data-img="/media/{{ r.slug }}/{{ e.frame }}" data-alt="{{ ev(e.text) }}" data-caption="{{ ev(e.text) }}">
+          <img src="/media/{{ r.slug }}/{{ e.frame }}" alt="{{ t('frame_alt', t='%.1f' % (e.timestamp or 0)) }}" loading="lazy">
+          <span class="ts">{{ '%.1f' | format(e.timestamp or 0) }}s</span>
+        </a>
+        <figcaption><span class="txt"><span class="pill {{ e.direction.value }}" style="font-size:.7rem">{{ t('clue_' ~ ('real' if e.direction.value == 'human' else e.direction.value)) }}</span> {{ ev(e.text) }}</span>
+          {% if (e.text | length) > 140 %}<button type="button" class="more" aria-expanded="false" data-more="{{ t('show_more') }}" data-less="{{ t('show_less') }}">{{ t('show_more') }}</button>{% endif %}
+        </figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if not framed and not loose %}<p class="muted">{{ t('no_clues') }}</p>{% endif %}
+  </section>
+
+  <section class="block reveal">
+    <h2>{{ t('next_title') }}</h2>
+    <ul class="next">
+      <li>🔎 {{ t('next_1') }}</li>
+      <li>⚠️ {{ t('next_2') }}</li>
+      <li>✋ {{ t('next_3') }}</li>
+    </ul>
+    <p style="margin-top:20px"><a class="btn" href="/#analisar" style="text-decoration:none; display:inline-block">{{ t('check_another') }}</a></p>
+  </section>
+
+  <section class="block">
+    <details class="tech">
+      <summary>{{ t('tech_details') }}</summary>
       {% if marks %}
-      <h2 class="h3-look" style="margin-top:8px">{{ t('timeline_title') }}</h2>
+      <h2 class="h3-look" style="margin-top:16px">{{ t('timeline_title') }}</h2>
       <div class="timeline">
         <div class="track"></div>
         {% for m in marks %}
@@ -86,50 +131,21 @@
       </div>
       <div class="tl-axis"><span>0s</span><span>{{ '%.0f' | format(duration) }}s</span></div>
       {% endif %}
-    </div>
-  </section>
-
-  {% set framed = [] %}
-  {% for s in r.signals %}{% for e in s.evidence %}{% if e.frame %}{% set _ = framed.append(e) %}{% endif %}{% endfor %}{% endfor %}
-  {% if framed %}
-  <section class="block reveal">
-    <h2>{{ t('evidence_title') }}</h2>
-    <p class="sub">{{ t('zoom_hint') }}</p>
-    <div class="frames" id="frames">
-      {% for e in framed %}
-      <figure class="frame" data-t="{{ (e.timestamp or 0) | round(1) }}">
-        <a href="/media/{{ r.slug }}/{{ e.frame }}" data-img="/media/{{ r.slug }}/{{ e.frame }}" data-alt="{{ ev(e.text) }}" data-caption="{{ ev(e.text) }}">
-          <img src="/media/{{ r.slug }}/{{ e.frame }}" alt="{{ t('frame_alt', t='%.1f' % (e.timestamp or 0)) }}" loading="lazy">
-          <span class="ts">{{ '%.1f' | format(e.timestamp or 0) }}s</span>
-        </a>
-        <figcaption><span class="txt"><span class="pill {{ e.direction.value }}" style="font-size:.7rem">{{ dirlabel(e.direction.value) }}</span> {{ ev(e.text) }}</span>
-          {% if (e.text | length) > 140 %}<button type="button" class="more" aria-expanded="false" data-more="{{ t('show_more') }}" data-less="{{ t('show_less') }}">{{ t('show_more') }}</button>{% endif %}
-        </figcaption>
-      </figure>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
-
-  <section class="block reveal">
-    <h2>{{ ('Os %d sinais' if lang == 'pt' else 'The %d signals') % (r.signals | length) }}</h2>
-    <div class="chart" style="padding:4px 24px; margin-top:16px">
-      {% for s in r.signals %}
-      <div class="signal">
-        <strong>{{ t('sig_' ~ s.name) }}</strong>
-        <span>{% if not s.available %}<span class="pill">{{ t('not_available') }}</span>
-          {% elif s.direction.value == 'ai' %}<span class="pill ai">{{ t('points_ai') }}</span>
-          {% elif s.direction.value == 'human' %}<span class="pill human">{{ t('points_human') }}</span>
-          {% else %}<span class="pill">{{ t('neutral') }}</span>{% endif %}</span>
-        {% if s.note %}<p class="muted" style="margin:0; grid-column:1 / -1">{{ note(s.note) }}</p>{% endif %}
-        {% set loose = s.evidence | rejectattr('frame') | list %}
-        {% if loose %}<ul style="margin:6px 0 0; grid-column:1 / -1; padding-left:18px">
-          {% for e in loose %}<li>{{ ev(e.text) }}</li>{% endfor %}</ul>{% endif %}
+      <div class="chart" style="padding:4px 24px; margin-top:16px">
+        {% for s in r.signals %}
+        <div class="signal">
+          <strong>{{ t('sig_' ~ s.name) }}</strong>
+          <span>{% if not s.available %}<span class="pill">{{ t('not_available') }}</span>
+            {% elif s.direction.value == 'ai' %}<span class="pill ai">{{ t('points_ai') }}</span>
+            {% elif s.direction.value == 'human' %}<span class="pill human">{{ t('points_human') }}</span>
+            {% else %}<span class="pill">{{ t('neutral') }}</span>{% endif %}</span>
+          {% if s.note %}<p class="muted" style="margin:0; grid-column:1 / -1">{{ note(s.note) }}</p>{% endif %}
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
-    <p class="muted" style="font-size:.88rem; margin-top:20px">{{ t('disclaimer') }}<br>
-      {{ t('method_line', v=r.method_version, when=r.analyzed_at.strftime('%Y-%m-%d %H:%M UTC')) }} · <a href="/api/report/{{ r.slug }}">{{ t('json') }}</a></p>
+      <p class="muted" style="font-size:.88rem; margin-top:16px">{{ t('disclaimer') }}<br>
+        {{ t('method_line', v=r.method_version, when=r.analyzed_at.strftime('%Y-%m-%d %H:%M UTC')) }} · <a href="/api/report/{{ r.slug }}">{{ t('json') }}</a></p>
+    </details>
   </section>
 </div>
 {% endblock %}

@@ -1,198 +1,160 @@
-{# The analyzer: first "how do you want to run it?", then the video.
-   Modes: key (visitor's own key, checked before any download), kaggle (no
-   install, runs elsewhere), demo (the host's key, only when one is set).
-   The static site (GitHub Pages) has no server, so it only offers Kaggle and
-   running locally. #}
+{# The analyzer, built for anyone: paste a link, press one button.
+   Everything technical (own key, Kaggle, file upload) sits under
+   "Advanced options". The static site (GitHub Pages) has no server: its
+   button goes to the hosted analyzer when ANALYZER_URL is set, otherwise to
+   the Kaggle steps. #}
 {% set free = [('groq', 'Groq', 'https://console.groq.com/keys'), ('gemini', 'Google Gemini', 'https://aistudio.google.com/apikey')] %}
 {% set paid = [('anthropic', 'Anthropic (Claude)', 'https://console.anthropic.com/settings/keys'), ('openai', 'OpenAI', 'https://platform.openai.com/api-keys')] %}
 {% set live = (allow_live or allow_byok) and not static_site %}
-{% set start_mode = 'demo' if host_vision else ('key' if live else 'kaggle') %}
 
 <style>
-  #analisar [hidden] { display: none !important; }  /* .row/.panel set display, which would beat [hidden] */
-  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 18px 0 8px; }
-  .mode { text-align: left; border: 1px solid var(--grid); background: var(--surface); color: var(--ink); border-radius: 12px; padding: 14px 16px; cursor: pointer; font: inherit; }
-  .mode strong { display: block; font-size: 1rem; }
-  .mode span { display: block; color: var(--muted); font-size: .84rem; margin-top: 2px; }
-  .mode[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-  .mode span.tag { display: inline-block; margin-top: 0; font-size: .7rem; font-weight: 700; color: var(--accent); margin-left: 6px; }
-  .panel { border: 1px solid var(--ring); background: var(--surface); border-radius: 12px; padding: 18px; margin-top: 10px; }
-  .panel[hidden] { display: none; }
-  .steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; gap: 14px; }
-  .steps > li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
-  .steps > li::before { content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--page); font-size: .8rem; font-weight: 700; display: grid; place-items: center; margin-top: 2px; }
+  #analisar [hidden] { display: none !important; }
+  .checker form.analyze { display: block; margin: 0; }  /* base.html makes forms flex rows */
+  .checker form.analyze input { flex: initial; }
+  .checker { background: var(--surface); border: 1px solid var(--ring); border-radius: 18px; padding: 22px; box-shadow: 0 10px 40px -20px rgba(0,0,0,.25); }
+  .checker .bar { display: flex; gap: 10px; flex-wrap: wrap; }
+  .checker .bar input[type=url] { flex: 1 1 320px; font: inherit; font-size: 1.08rem; padding: 16px 18px; border-radius: 12px; border: 2px solid var(--axis); background: var(--page); color: var(--ink); }
+  .checker .bar input[type=url]:focus { border-color: var(--accent); outline: none; }
+  .checker .bar .btn { font-size: 1.05rem; padding: 16px 26px; border-radius: 12px; background: var(--accent); color: var(--page); }
+  .checker .bar .btn[disabled] { opacity: .5; }
+  .examples { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; font-size: .88rem; }
+  .examples button { border: 1px solid var(--grid); background: var(--page); color: var(--ink-2); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  .examples button:hover { border-color: var(--ink); color: var(--ink); }
+  .trust { font-size: .85rem; color: var(--muted); margin: 12px 0 0; }
+  .partial { margin-top: 14px; font-size: .9rem; padding: 10px 14px; border-radius: 10px; background: var(--page); border: 1px solid var(--grid); }
+  .linkish { border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
+  details.advanced { margin-top: 16px; border-top: 1px solid var(--grid); padding-top: 12px; }
+  details.advanced > summary { cursor: pointer; color: var(--ink-2); font-size: .92rem; }
+  .adv-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 10px; }
+  .adv-tabs button { border: 1px solid var(--grid); background: none; color: var(--ink-2); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: .86rem; cursor: pointer; }
+  .adv-tabs button[aria-pressed="true"] { background: var(--ink); color: var(--page); border-color: var(--ink); }
+  .adv-panel { font-size: .92rem; }
+  .steps { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; gap: 12px; }
+  .steps > li { counter-increment: s; display: grid; grid-template-columns: 26px 1fr; gap: 10px; }
+  .steps > li::before { content: counter(s); width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--page); font-size: .75rem; font-weight: 700; display: grid; place-items: center; margin-top: 2px; }
   .provs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-  .provs label { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--grid); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: .9rem; }
+  .provs label { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--grid); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
   .provs input { accent-color: var(--accent); }
-  .provs label:has(input:checked) { border-color: var(--ink); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  .row input, .row select { flex: 1 1 220px; padding: 11px 12px; border-radius: 8px; border: 1px solid var(--axis); background: var(--page); color: var(--ink); font: inherit; }
-  .btn-2 { padding: 11px 16px; border-radius: 8px; border: 1px solid var(--ink); background: none; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
-  .btn-2[disabled] { opacity: .55; cursor: progress; }
-  .keystate { font-size: .88rem; margin-top: 8px; }
+  .row input, .row select { flex: 1 1 220px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--axis); background: var(--page); color: var(--ink); font: inherit; }
+  .btn-2 { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--ink); background: none; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+  .btn-2[disabled] { opacity: .55; }
+  .keystate { font-size: .86rem; margin-top: 6px; }
   .keystate.ok { color: var(--human); } .keystate.bad { color: var(--ai); }
-  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; font-size: .85rem; }
-  .examples button { border: 1px dashed var(--axis); background: none; color: var(--ink-2); border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; }
-  .preflight { font-size: .88rem; margin: 12px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--page); border: 1px solid var(--grid); }
-  .preflight.warn { border-color: var(--ai); }
-  .video-step { margin-top: 18px; }
-  .video-step .row input[type=url] { flex: 3 1 300px; }
-  form.analyze label.upload { flex-basis: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .88rem; margin-top: 8px; }
-  form.analyze label.upload input { flex: 1 1 200px; padding: 8px; border: 1px dashed var(--axis); border-radius: 8px; font-size: .88rem; }
-  details.more { margin-top: 10px; font-size: .88rem; }
-  details.more summary { cursor: pointer; color: var(--ink-2); }
+  .adv-panel input[type=file] { width: 100%; padding: 10px; border: 1px dashed var(--axis); border-radius: 8px; margin-top: 6px; }
+  @media (max-width: 520px) { .checker { padding: 16px; } .checker .bar .btn { flex: 1 1 100%; } }
 </style>
 
-<div class="modes" role="group" aria-label="{{ t('mode_label') }}">
-  {% if live %}
-  <button type="button" class="mode" data-mode="key" aria-pressed="{{ 'true' if start_mode == 'key' else 'false' }}">
-    <strong>{{ t('mode_key') }}<span class="tag">{{ t('free') }}</span></strong><span>{{ t('mode_key_sub') }}</span></button>
-  {% endif %}
-  <button type="button" class="mode" data-mode="kaggle" aria-pressed="{{ 'true' if start_mode == 'kaggle' else 'false' }}">
-    <strong>Kaggle<span class="tag">{{ t('no_install') }}</span></strong><span>{{ t('mode_kaggle_sub') }}</span></button>
-  {% if host_vision %}
-  <button type="button" class="mode" data-mode="demo" aria-pressed="{{ 'true' if start_mode == 'demo' else 'false' }}">
-    <strong>{{ t('mode_demo') }}</strong><span>{{ t('mode_demo_sub', limit=limit) }}</span></button>
-  {% endif %}
-  {% if not live %}
-  <button type="button" class="mode" data-mode="local" aria-pressed="false">
-    <strong>{{ t('mode_local') }}</strong><span>{{ t('mode_local_sub') }}</span></button>
-  {% endif %}
-</div>
-
-{# ---- Kaggle -------------------------------------------------------------- #}
-<div class="panel" data-panel="kaggle" {% if start_mode != 'kaggle' %}hidden{% endif %}>
-  <ol class="steps">
-    <li><div><strong>{{ t('kaggle_1') }}</strong><br>
-      <a class="btn" style="display:inline-block; margin-top:8px; text-decoration:none" href="{{ kaggle_url }}" target="_blank" rel="noopener noreferrer">{{ t('kaggle_open') }} ↗</a></div></li>
-    <li><div><strong>{{ t('kaggle_2') }}</strong><br><span class="muted">{{ t('kaggle_2_sub') }}</span></div></li>
-    <li><div><strong>{{ t('kaggle_3') }}</strong><br><span class="muted">{{ t('kaggle_3_sub') }}</span></div></li>
-  </ol>
-</div>
-
+<div class="checker">
 {% if not live %}
-{# ---- static site: run locally -------------------------------------------- #}
-<div class="panel" data-panel="local" hidden>
-  <p style="margin-top:0">{{ t('local_body') }}</p>
-  <pre style="overflow-x:auto; background:var(--page); padding:12px; border-radius:8px; font-size:.82rem; margin:0"><code>pip install "ai-video-observatory[detect] @ git+{{ repo_url }}"
-observatory serve</code></pre>
-  <p class="muted" style="font-size:.85rem; margin-bottom:0"><a href="/docs/projeto#run-it">{{ t('static_note_link') }} →</a></p>
-</div>
-{% else %}
-<form class="analyze" method="post" action="/analyze" autocomplete="off" enctype="multipart/form-data"
-      hx-post="/analyze" hx-encoding="multipart/form-data" hx-target="#analyze-status" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]">
-
-  {# ---- visitor key ------------------------------------------------------- #}
-  <div class="panel" data-panel="key" {% if start_mode != 'key' %}hidden{% endif %}>
-    <ol class="steps">
-      <li><div>
-        <strong>{{ t('key_step_provider') }}</strong>
-        <div class="provs" role="radiogroup">
-          {% for value, label, url in free %}
-          <label><input type="radio" name="key_provider" value="{{ value }}" data-keyurl="{{ url }}" {% if loop.first %}checked{% endif %}> {{ label }} <span class="muted" style="font-size:.75rem">{{ t('free') }}</span></label>
-          {% endfor %}
-        </div>
-        <details class="more"><summary>{{ t('key_more') }}</summary>
-          <div class="provs">
-            {% for value, label, url in paid %}
-            <label><input type="radio" name="key_provider" value="{{ value }}" data-keyurl="{{ url }}"> {{ label }}</label>
-            {% endfor %}
-          </div>
-        </details>
-      </div></li>
-      <li><div>
-        <strong>{{ t('key_step_key') }}</strong>
-        <span class="muted" style="font-size:.85rem"> · <a id="key-link" href="{{ free[0][2] }}" target="_blank" rel="noopener noreferrer">{{ t('key_get') }} ↗</a></span>
-        <div class="row">
-          <input type="password" name="api_key" id="api-key" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="{{ t('byok_key') }}" placeholder="{{ t('key_placeholder') }}">
-          <button type="button" class="btn-2" id="key-check">{{ t('key_check') }}</button>
-        </div>
-        <div class="keystate" id="key-state" role="status" aria-live="polite"></div>
-        <div class="row" id="model-row" hidden>
-          <select name="key_model" id="key-model" aria-label="{{ t('byok_model') }}"></select>
-        </div>
-        <p class="muted" style="font-size:.82rem; margin:8px 0 0">⚠️ {{ t('byok_model_matters') }} <a href="/benchmarks">{{ t('byok_model_matters_link') }}</a>.</p>
-        <p class="muted" style="font-size:.78rem; margin:8px 0 0">🔒 {{ t('byok_privacy') }}</p>
-      </div></li>
-    </ol>
-  </div>
-
-  {# ---- host demo ---------------------------------------------------------- #}
-  {% if host_vision %}
-  <div class="panel" data-panel="demo" {% if start_mode != 'demo' %}hidden{% endif %}>
-    <p style="margin:0">{{ t('demo_body', limit=limit) }}</p>
-  </div>
+  {# ---- static site: no server here ---------------------------------------- #}
+  {% if analyzer_url %}
+  <a class="btn" href="{{ analyzer_url }}" style="display:inline-block; text-decoration:none; font-size:1.1rem; padding:16px 28px; border-radius:12px; background:var(--accent); color:var(--page)">{{ t('static_cta') }} →</a>
+  <p class="trust">{{ t('home_trust') }}</p>
+  {% else %}
+  <p style="margin-top:0">{{ t('static_none') }}</p>
+  <ol class="steps">
+    <li><div>{{ t('kaggle_1') }}<br><a class="btn" style="display:inline-block; margin-top:8px; text-decoration:none" href="{{ kaggle_url }}" target="_blank" rel="noopener noreferrer">{{ t('kaggle_open') }} ↗</a></div></li>
+    <li><div>{{ t('kaggle_2') }}<br><span class="muted">{{ t('kaggle_2_sub') }}</span></div></li>
+    <li><div>{{ t('kaggle_3') }}</div></li>
+  </ol>
   {% endif %}
-
-  {# ---- the video (key and demo modes) ------------------------------------- #}
-  <div class="video-step" id="video-step" {% if start_mode == 'kaggle' %}hidden{% endif %}>
-    <strong>{{ t('video_step') }}</strong>
-    <div class="row">
-      <input type="url" name="url" id="video-url" placeholder="{{ t('link_placeholder') }}" aria-label="{{ t('link_label') }}">
-      <button class="btn" type="submit" id="analyze-btn">{{ t('analyze_button') }}</button>
+{% else %}
+  <form class="analyze" method="post" action="/analyze" autocomplete="off" enctype="multipart/form-data"
+        hx-post="/analyze" hx-encoding="multipart/form-data" hx-target="#analyze-status" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]">
+    <div class="bar">
+      <input type="url" name="url" id="video-url" placeholder="{{ t('home_paste') }}" aria-label="{{ t('link_label') }}">
+      <button class="btn" type="submit" id="analyze-btn">{{ t('home_check') }}</button>
     </div>
     <div class="examples"><span class="muted">{{ t('examples') }}</span>
       {% for ex in examples %}<button type="button" data-example="{{ ex.url }}">{{ ex[lang] }}</button>{% endfor %}
     </div>
-    {% if allow_upload %}
-    <label class="upload muted">{{ t('file_label') }}
-      <input type="file" name="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.m4v,.webm,.mkv">
-    </label>
+    <p class="trust">🔒 {{ t('home_trust') }}</p>
+
+    {% if not host_vision %}
+    <div class="partial" id="partial-note">{{ t('partial_note') }} <button type="button" class="linkish" data-open="key">{{ t('partial_cta') }}</button></div>
     {% endif %}
-    <p class="preflight" id="preflight" role="status" aria-live="polite"></p>
-  </div>
-</form>
-<div id="analyze-status"></div>
+
+    <details class="advanced" id="advanced">
+      <summary>{{ t('advanced') }}</summary>
+      <div class="adv-tabs" role="group">
+        <button type="button" data-tab="key" aria-pressed="true">{{ t('adv_key') }}</button>
+        <button type="button" data-tab="kaggle" aria-pressed="false">{{ t('adv_kaggle') }}</button>
+        {% if allow_upload %}<button type="button" data-tab="file" aria-pressed="false">{{ t('adv_file') }}</button>{% endif %}
+      </div>
+
+      <div class="adv-panel" data-tabpanel="key">
+        <ol class="steps">
+          <li><div>{{ t('key_step_provider') }}
+            <div class="provs" role="radiogroup">
+              {% for value, label, url in free + paid %}
+              <label><input type="radio" name="key_provider" value="{{ value }}" data-keyurl="{{ url }}" {% if loop.first %}checked{% endif %}> {{ label }}{% if loop.index <= 2 %} <span class="muted" style="font-size:.75rem">{{ t('free') }}</span>{% endif %}</label>
+              {% endfor %}
+            </div></div></li>
+          <li><div>{{ t('key_step_key') }} · <a id="key-link" href="{{ free[0][2] }}" target="_blank" rel="noopener noreferrer">{{ t('key_get') }} ↗</a>
+            <div class="row">
+              <input type="password" name="api_key" id="api-key" autocomplete="off" spellcheck="false" autocapitalize="off" aria-label="{{ t('byok_key') }}" placeholder="{{ t('key_placeholder') }}">
+              <button type="button" class="btn-2" id="key-check">{{ t('key_check') }}</button>
+            </div>
+            <div class="keystate" id="key-state" role="status" aria-live="polite"></div>
+            <div class="row" id="model-row" hidden><select name="key_model" id="key-model" aria-label="{{ t('byok_model') }}"></select></div>
+            <p class="muted" style="font-size:.8rem; margin:8px 0 0">⚠️ {{ t('byok_model_matters') }} <a href="/benchmarks">{{ t('byok_model_matters_link') }}</a>.</p>
+            <p class="muted" style="font-size:.78rem; margin:6px 0 0">🔒 {{ t('byok_privacy') }}</p>
+          </div></li>
+        </ol>
+      </div>
+
+      <div class="adv-panel" data-tabpanel="kaggle" hidden>
+        <ol class="steps">
+          <li><div>{{ t('kaggle_1') }}<br><a class="btn-2" style="display:inline-block; margin-top:8px; text-decoration:none" href="{{ kaggle_url }}" target="_blank" rel="noopener noreferrer">{{ t('kaggle_open') }} ↗</a></div></li>
+          <li><div>{{ t('kaggle_2') }}<br><span class="muted">{{ t('kaggle_2_sub') }}</span></div></li>
+          <li><div>{{ t('kaggle_3') }}</div></li>
+        </ol>
+      </div>
+
+      {% if allow_upload %}
+      <div class="adv-panel" data-tabpanel="file" hidden>
+        <label>{{ t('file_label') }}
+          <input type="file" name="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.m4v,.webm,.mkv">
+        </label>
+      </div>
+      {% endif %}
+    </details>
+  </form>
+  <div id="analyze-status"></div>
 {% endif %}
+</div>
 
 <script>
 (() => {
-  const L = {{ {
-    'checking': t('key_checking'), 'ok': t('key_ok'), 'models': t('key_models'),
-    'pre_full': t('pre_full'), 'pre_partial': t('pre_partial'), 'pre_need_key': t('pre_need_key'),
-    'network': t('key_network'),
-  } | tojson }};
-  const modes = document.querySelectorAll('.mode');
-  const panels = document.querySelectorAll('[data-panel]');
-  const videoStep = document.getElementById('video-step');
-  const form = document.querySelector('form.analyze');
+  const L = {{ {'checking': t('key_checking'), 'ok': t('key_ok'), 'models': t('key_models'), 'network': t('key_network')} | tojson }};
+  const adv = document.getElementById('advanced');
   const keyInput = document.getElementById('api-key');
   const modelRow = document.getElementById('model-row');
   const modelSel = document.getElementById('key-model');
   const state = document.getElementById('key-state');
-  const pre = document.getElementById('preflight');
   const btn = document.getElementById('analyze-btn');
-  let mode = document.querySelector('.mode[aria-pressed="true"]')?.dataset.mode;
+  if (!adv) return;  // static site
   let keyOk = false;
 
-  function preflight() {
-    if (!pre) return;
-    if (mode === 'demo') { pre.textContent = L.pre_full; pre.classList.remove('warn'); btn.disabled = false; return; }
-    if (mode === 'key') {
-      pre.textContent = keyOk ? L.pre_full : L.pre_need_key;
-      pre.classList.toggle('warn', !keyOk);
-      btn.disabled = !keyOk;
-    }
-  }
-  function setMode(m) {
-    mode = m;
-    modes.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
-    panels.forEach((p) => { p.hidden = p.dataset.panel !== m; });
-    if (videoStep) videoStep.hidden = !(m === 'key' || m === 'demo');
-    // in demo mode the visitor key fields must not be sent
-    if (form) form.querySelectorAll('[data-panel="key"] input, [data-panel="key"] select').forEach((el) => { el.disabled = m !== 'key'; });
-    preflight();
-  }
-  modes.forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  // A typed key must be checked before analyzing; an empty key never blocks.
+  const sync = () => { btn.disabled = keyInput.value.trim() !== '' && !keyOk; };
+  const reset = () => { keyOk = false; modelRow.hidden = true; state.textContent = ''; state.className = 'keystate'; sync(); };
 
-  // provider change: new key link, and the previous check no longer applies
+  function openTab(name) {
+    adv.open = true;
+    adv.querySelectorAll('[data-tab]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tab === name)));
+    adv.querySelectorAll('[data-tabpanel]').forEach((p) => { p.hidden = p.dataset.tabpanel !== name; });
+  }
+  adv.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => openTab(b.dataset.tab)));
+  document.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => { openTab(b.dataset.open); keyInput.focus(); }));
+
   document.querySelectorAll('input[name="key_provider"]').forEach((r) => r.addEventListener('change', () => {
-    document.getElementById('key-link').href = r.dataset.keyurl;
-    keyOk = false; modelRow.hidden = true; state.textContent = ''; state.className = 'keystate'; preflight();
+    document.getElementById('key-link').href = r.dataset.keyurl; reset();
   }));
-  keyInput?.addEventListener('input', () => { if (keyOk) { keyOk = false; modelRow.hidden = true; state.textContent = ''; preflight(); } });
+  keyInput.addEventListener('input', reset);
 
-  document.getElementById('key-check')?.addEventListener('click', async (ev) => {
+  document.getElementById('key-check').addEventListener('click', async (ev) => {
     const b = ev.currentTarget; b.disabled = true;
     state.className = 'keystate'; state.textContent = L.checking;
     const data = new FormData();
@@ -204,21 +166,17 @@ observatory serve</code></pre>
       if (r.ok) {
         modelSel.innerHTML = '';
         r.models.forEach((m) => modelSel.add(new Option(m, m, m === r.default, m === r.default)));
-        modelRow.hidden = false;
-        state.className = 'keystate ok';
+        modelRow.hidden = false; state.className = 'keystate ok';
         state.textContent = `✓ ${L.ok} · ${r.models.length} ${L.models}`;
-      } else {
-        modelRow.hidden = true; state.className = 'keystate bad'; state.textContent = r.error;
-      }
-    } catch (e) {
-      keyOk = false; state.className = 'keystate bad'; state.textContent = L.network;
-    }
-    b.disabled = false; preflight();
+        const note = document.getElementById('partial-note'); if (note) note.hidden = true;
+      } else { modelRow.hidden = true; state.className = 'keystate bad'; state.textContent = r.error; }
+    } catch (e) { keyOk = false; state.className = 'keystate bad'; state.textContent = L.network; }
+    b.disabled = false; sync();
   });
 
   document.querySelectorAll('[data-example]').forEach((b) => b.addEventListener('click', () => {
     const u = document.getElementById('video-url'); u.value = b.dataset.example; u.focus();
   }));
-  if (mode) setMode(mode);
+  sync();
 })();
 </script>

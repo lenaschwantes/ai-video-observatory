@@ -34,4 +34,4 @@ jobs:
         run: |
           docker run -d -p 7860:7860 --name app ai-video-observatory
           for i in $(seq 1 30); do curl -fs "http://localhost:7860/?lang=en" > page.html && break; sleep 1; done
-          grep -q "Do AI-video detectors accuse real videos?" page.html
+          grep -q "Was this video made with AI?" page.html

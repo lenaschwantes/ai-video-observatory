@@ -36,15 +36,14 @@ def _report(tmp_path) -> Report:
     return r
 
 
-def test_home_shows_pending_state_without_benchmark(client):
-    page = client.get("/?lang=pt").text
-    assert "Benchmark em andamento" in page
-    assert "Helena Schwantes" in page
+def test_research_page_shows_pending_state_without_benchmark(client):
+    assert "Benchmark em andamento" in client.get("/benchmarks?lang=pt").text
+    assert "Helena Schwantes" in client.get("/?lang=pt").text
 
 
 def test_language_switch_sets_cookie(client):
     resp = client.get("/?lang=en")
-    assert "Do AI-video detectors accuse real videos?" in resp.text
+    assert "Was this video made with AI?" in resp.text
     assert resp.cookies.get("lang") == "en"
 
 
@@ -57,7 +56,7 @@ def test_ranking_renders_hero_from_benchmark(client, tmp_path, monkeypatch):
          "scores": {"false_positive_rate": 0.0, "auc": 1.0, "recall_ai": 1.0}, "by_region": {}},
     ]}))
     monkeypatch.setattr(web, "BENCHMARKS_FILE", bench)
-    page = client.get("/?lang=en").text
+    page = client.get("/benchmarks?lang=en").text  # the research headline lives on the research page
     assert "were called AI by Sightengine" in page
     assert "Fewest errors: Claude, at 0%." in page
     assert client.get("/benchmarks").status_code == 200

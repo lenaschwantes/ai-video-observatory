@@ -1,84 +1,83 @@
 {% extends "base.html" %}
-{% from "_ranking.html" import ranking with context %}
+{% block title %}{{ t('home_title') }} · {{ t('site_name') }}{% endblock %}
+{% block description %}{{ t('home_sub') }}{% endblock %}
 {% block head %}
-<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
-<script src="/static/charts.js"></script>
 <style>
   .spin { width: 14px; height: 14px; border: 2px solid var(--grid); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .hero { padding: 56px 0 40px; text-align: center; }
+  .hero .pill-kicker { display: inline-block; font-size: .8rem; font-weight: 600; color: var(--accent); border: 1px solid var(--grid); border-radius: 999px; padding: 4px 12px; }
+  .hero h1 { font-size: clamp(2.3rem, 7vw, 4rem); margin: 16px auto 14px; max-width: 14ch; }
+  .hero .sub { font-size: 1.15rem; color: var(--ink-2); max-width: 600px; margin: 0 auto 28px; }
+  .hero #analisar { max-width: 760px; margin: 0 auto; text-align: left; }
+  .cards3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--ring); border-radius: 14px; padding: 20px; }
+  .card .icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 1.3rem; background: var(--page); border: 1px solid var(--grid); }
+  .card h3 { margin: 12px 0 4px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: .95rem; }
+  .verdict-card { border-top: 4px solid var(--muted); }
+  .verdict-card.ai { border-top-color: var(--ai); } .verdict-card.real { border-top-color: var(--human); }
+  .research { display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--ring); border-radius: 14px; padding: 22px 24px; }
+  .research h2 { margin: 0 0 4px; font-size: 1.4rem; }
+  .research p { margin: 0; color: var(--ink-2); max-width: 560px; }
+  section.block h2.center { text-align: center; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="wrap">
-  <section class="block" style="padding-top:48px">
-    <div class="kicker">{{ t('kicker') }}{% if b.ready and b.generated_at %} · {{ t('updated') }} {{ b.generated_at }}{% endif %}</div>
-    <h1 class="prose">{{ t('headline') }}</h1>
-    <p class="dek">{{ t('dek') }}</p>
-
-    {% if b.ready %}
-    <div class="hero-num reveal">
-      <span class="value" data-countup data-value="{{ (b.worst.fpr * 100) | round | int }}" data-suffix="%">{{ (b.worst.fpr * 100) | round | int }}%</span>
-      <span class="caption">
-        {% if b.worst.real_flagged is not none and b.worst.n_real %}{{ t('hero_caption_n', k=b.worst.real_flagged, n=b.worst.n_real, name=b.worst.name) }}{% else %}{{ t('hero_caption', name=b.worst.name) }}{% endif %}<br>
-        <span class="muted">{{ t('hero_best', name=b.best.name, value=((b.best.fpr * 100) | round | int | string) ~ '%') }}</span>
-      </span>
+  <section class="hero">
+    <span class="pill-kicker">{{ t('home_kicker') }}</span>
+    <h1>{{ t('home_title') }}</h1>
+    <p class="sub">{{ t('home_sub') }}</p>
+    <div id="analisar">
+      {% include "_analyzer.html" %}
+      {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
     </div>
-    <p style="margin:20px 0 0"><a class="btn" href="#analisar" style="text-decoration:none; display:inline-block">{{ t('cta_try') }}</a></p>
-    <div class="reveal" style="margin-top:32px">{{ ranking(b, 'ranking-home') }}</div>
-    <p style="margin-top:14px"><a href="/benchmarks">{{ t('see_ranking') }} →</a></p>
-    {% else %}
-    <div class="chart reveal" style="margin-top:28px">
-      <h3>{{ t('pending_title') }}</h3>
-      <p class="muted" style="margin:0">{{ t('pending_body', videos=b.dataset.videos, ai=b.dataset.ai, real=b.dataset.real, br=b.dataset.br) }}</p>
-    </div>
-    {% endif %}
   </section>
 
   <section class="block reveal">
-    <h2>{{ t('how_title') }}</h2>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:28px; margin-top:20px">
-      {% for i in [1, 2, 3] %}
-      <div>
-        <div style="font-family:var(--serif); font-size:2.4rem; line-height:1; color:var(--accent)">{{ i }}</div>
-        <h3 style="margin-top:8px">{{ t('how_%d_t' % i) }}</h3>
-        <p class="muted" style="margin:0">{{ t('how_%d_b' % i) }}</p>
-      </div>
+    <h2 class="center">{{ t('how_simple_title') }}</h2>
+    <div class="cards3">
+      {% for icon, n in [('🔗', 1), ('🔍', 2), ('✅', 3)] %}
+      <div class="card"><div class="icon" aria-hidden="true">{{ icon }}</div>
+        <h3>{{ t('how_s%d_t' % n) }}</h3><p>{{ t('how_s%d_b' % n) }}</p></div>
       {% endfor %}
     </div>
   </section>
 
-  <section class="block reveal" id="analisar">
-    <div class="prose">
-      <h2>{{ t('try_title') }}</h2>
-      <p class="muted">{{ t('try_body') }}</p>
-      {% include "_analyzer.html" %}
-      {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+  <section class="block reveal">
+    <h2 class="center">{{ t('read_title') }}</h2>
+    <div class="cards3">
+      <div class="card verdict-card ai"><span class="pill likely_ai">{{ t('read_ai_t') }}</span><p style="margin-top:10px">{{ t('read_ai_b') }}</p></div>
+      <div class="card verdict-card"><span class="pill inconclusive">{{ t('read_unsure_t') }}</span><p style="margin-top:10px">{{ t('read_unsure_b') }}</p></div>
+      <div class="card verdict-card real"><span class="pill likely_human">{{ t('read_real_t') }}</span><p style="margin-top:10px">{{ t('read_real_b') }}</p></div>
     </div>
+    <p class="muted" style="text-align:center; margin-top:16px">{{ t('read_note') }}</p>
+  </section>
 
-    {% if reports %}
-    <h3 style="margin-top:40px">{{ t('recent_title') }}</h3>
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin-top:12px">
+  {% if reports %}
+  <section class="block reveal">
+    <h2 class="center">{{ t('recent_simple') }}</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; margin-top:20px">
       {% for r in reports %}
-      <a href="/report/{{ r.slug }}" class="chart" style="text-decoration:none; padding:0; display:block; overflow:hidden">
-        {% if r.frames %}<img src="/media/{{ r.slug }}/{{ r.frames[0].file }}" alt="" loading="lazy" style="display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-bottom:1px solid var(--ring)">{% endif %}
+      <a href="/report/{{ r.slug }}" class="card" style="text-decoration:none; padding:0; display:block; overflow:hidden">
+        {% if r.frames %}<img src="/media/{{ r.slug }}/{{ r.frames[0].file }}" alt="" loading="lazy" style="display:block; width:100%; aspect-ratio:16/9; object-fit:cover">{% endif %}
         <div style="padding:14px 16px 16px">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px">
           <span class="pill {{ r.verdict.value }}">{{ t('verdict_' ~ r.verdict.value) }}</span>
-          <strong style="font-size:1.4rem">{{ (r.probability * 100) | round | int }}%</strong>
-        </div>
-        <div style="margin-top:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.video.title or r.slug }}</div>
-        <div class="muted" style="font-size:.8rem">{{ r.video.platform }}</div>
+          <div style="margin-top:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.video.title or r.slug }}</div>
         </div>
       </a>
       {% endfor %}
     </div>
-    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="block reveal">
+    <div class="research">
+      <div><h2>{{ t('research_t') }}</h2><p>{{ t('research_b') }}</p></div>
+      <a class="btn" href="/benchmarks" style="text-decoration:none">{{ t('research_cta') }} →</a>
+    </div>
   </section>
 </div>
-{% endblock %}
-{% block scripts %}
-<script>
-  document.querySelectorAll('[data-countup]').forEach((el) => window.d3 && countUp(el));
-</script>
 {% endblock %}

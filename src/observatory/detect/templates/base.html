@@ -149,10 +149,9 @@
   <div class="wrap">
     <a class="brand" href="/">{% if lang == 'pt' %}Observatório<span>.</span>IA{% else %}Observatory<span>.</span>AI{% endif %}</a>
     <nav class="main" aria-label="Main">
-      <a href="/benchmarks" {% if path == '/benchmarks' %}aria-current="page"{% endif %}>{{ t('nav_ranking') }}</a>
-      <a class="opt2" href="/#analisar">{{ t('nav_analyze') }}</a>
-      <a class="opt" href="/metodo" {% if path in ('/metodo', '/method') %}aria-current="page"{% endif %}>{{ t('nav_method') }}</a>
-      <a class="opt" href="/docs/projeto" {% if path.startswith('/docs') %}aria-current="page"{% endif %}>{{ 'Docs' }}</a>
+      <a class="opt2" href="/" {% if path == '/' %}aria-current="page"{% endif %}>{{ t('nav_check') }}</a>
+      <a href="/benchmarks" {% if path == '/benchmarks' %}aria-current="page"{% endif %}>{{ t('nav_research') }}</a>
+      <a class="opt" href="/metodo" {% if path in ('/metodo', '/method') %}aria-current="page"{% endif %}>{{ t('nav_how') }}</a>
       <span class="toggles">
         <a class="chip {% if lang == 'pt' %}on{% endif %}" href="?lang=pt" hreflang="pt-BR">PT</a>
         <a class="chip {% if lang == 'en' %}on{% endif %}" href="?lang=en" hreflang="en">EN</a>
@@ -171,6 +170,7 @@
     <span>{{ t('made_by') }} <strong style="color:var(--ink)">Helena Schwantes</strong> ·
       <a href="https://www.linkedin.com/in/helenags" rel="author">LinkedIn</a> ·
       <a href="https://github.com/lenaschwantes" rel="author">GitHub</a> ·
+      <a href="/docs/projeto">{{ 'Documentação' if lang == 'pt' else 'Documentation' }}</a> ·
       <a href="{{ repo_url }}">{{ t('source_code') }}</a> ·
       <a href="https://github.com/sponsors/lenaschwantes">{{ t('sponsor') }}</a></span>
     <span>{{ t('footer') }}</span>

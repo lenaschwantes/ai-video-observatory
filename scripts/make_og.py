@@ -19,11 +19,14 @@ SANS_BOLD = os.environ.get("OG_SANS_BOLD", str(FONTS / "segoeuib.ttf"))
 PAGE, INK, INK2, ACCENT, AI, HUMAN = "#f9f9f7", "#0b0b0b", "#52514e", "#c2410c", "#e34948", "#2a78d6"
 
 COPY = {
-    "pt": ("TESTE INDEPENDENTE", "Detectores de vídeo de IA\nacusam vídeos reais?",
-           "Ferramentas comerciais e modelos de IA testados nos mesmos vídeos,\nincluindo conteúdo brasileiro.", "Observatório.IA"),
-    "en": ("INDEPENDENT TEST", "Do AI-video detectors\naccuse real videos?",
-           "Commercial tools and AI models tested on the same videos,\nBrazilian content included.", "Observatory.AI"),
+    "pt": ("GRÁTIS · SEM CADASTRO", "Esse vídeo foi\nfeito com IA?",
+           "Cole o link e veja em cerca de um minuto,\ncom as provas.", "Observatório.IA"),
+    "en": ("FREE · NO SIGN-UP", "Was this video\nmade with AI?",
+           "Paste the link and see in about a minute,\nwith the proof.", "Observatory.AI"),
 }
+
+
+BUTTON = {"pt": "Verificar", "en": "Check"}
 
 
 def render(lang: str) -> None:
@@ -33,11 +36,12 @@ def render(lang: str) -> None:
     d.text((80, 70), kicker, font=ImageFont.truetype(SANS_BOLD, 26), fill=ACCENT)
     d.multiline_text((80, 120), headline, font=ImageFont.truetype(SERIF, 72), fill=INK, spacing=10)
     d.multiline_text((80, 330), sub, font=ImageFont.truetype(SANS, 30), fill=INK2, spacing=8)
-    # a small ranking motif: bars of decreasing length, the top one in the "accused" colour
-    for i, (w, colour) in enumerate([(520, AI), (430, AI), (300, AI), (170, HUMAN)]):
-        y = 450 + i * 34
-        d.rounded_rectangle((80, y, 80 + w, y + 20), radius=6, fill=colour)
-    d.text((1120, 560), brand, font=ImageFont.truetype(SERIF, 34), fill=INK, anchor="rs")
+    # the product in one picture: a link field and the check button
+    d.rounded_rectangle((80, 450, 700, 530), radius=16, fill="#ffffff", outline="#c3c2b7", width=3)
+    d.text((110, 490), "youtube.com/shorts/…", font=ImageFont.truetype(SANS, 30), fill="#898781", anchor="lm")
+    d.rounded_rectangle((716, 450, 960, 530), radius=16, fill=ACCENT)
+    d.text((838, 490), BUTTON[lang], font=ImageFont.truetype(SANS_BOLD, 30), fill="#ffffff", anchor="mm")
+    d.text((1120, 100), brand, font=ImageFont.truetype(SERIF, 34), fill=INK, anchor="rs")
     img.save(OUT / f"og-{lang}.png", optimize=True)
     print("wrote", OUT / f"og-{lang}.png")
 

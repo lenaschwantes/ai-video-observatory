@@ -54,19 +54,23 @@ def test_key_check_validates_input_and_is_rate_limited(client, monkeypatch):
     assert client.post("/api/keys/check", data={"provider": "groq", "api_key": KEY}).status_code == 429
 
 
-def test_analyzer_asks_how_to_run_first(client, monkeypatch):
-    monkeypatch.setattr(web, "host_provider", lambda: None)
-    page = client.get("/?lang=pt").text
-    assert "Como você quer rodar?" in page and 'data-mode="key"' in page and 'data-mode="kaggle"' in page
-    assert 'data-mode="demo"' not in page  # no host key: no demo option
-    assert 'id="key-check"' in page and "kernels/welcome?src=" in page
-    assert "Primeiro vídeo do YouTube (2005)" in page  # one-click examples
-
-
-def test_demo_mode_appears_only_with_a_host_key(client, monkeypatch):
+def test_home_puts_the_check_first_in_plain_language(client, monkeypatch):
     monkeypatch.setattr(web, "host_provider", lambda: "groq")
+    page = client.get("/?lang=pt").text
+    assert page.index("Esse vídeo foi feito com IA?") < page.index('id="video-url"') < page.index('<h2 class="center">Como funciona')
+    assert "Verificar vídeo" in page and "Primeiro vídeo do YouTube (2005)" in page
+    # technical paths stay available, folded away
+    assert '<details class="advanced"' in page and 'id="key-check"' in page and "kernels/welcome?src=" in page
+    for jargon in ("AUC", "C2PA", "log-odds", "Como você quer rodar?"):
+        assert jargon not in page.split("Opções avançadas")[0]
+
+
+def test_without_a_host_key_the_home_says_so_and_offers_a_free_key(client, monkeypatch):
+    monkeypatch.setattr(web, "host_provider", lambda: None)
     page = client.get("/?lang=en").text
-    assert 'data-mode="demo"' in page and "Site demo" in page
+    assert 'id="partial-note"' in page and "Connect a free key" in page
+    monkeypatch.setattr(web, "host_provider", lambda: "groq")
+    assert 'id="partial-note"' not in client.get("/?lang=en").text
 
 
 def test_kaggle_notebook_installs_from_the_repo_and_reads_secrets():

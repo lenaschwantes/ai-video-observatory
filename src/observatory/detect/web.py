@@ -50,6 +50,10 @@ KAGGLE_URL = os.environ.get(
     "KAGGLE_NOTEBOOK_URL",
     "https://www.kaggle.com/kernels/welcome?src=https://github.com/lenaschwantes/ai-video-observatory/blob/main/notebooks/analyze_on_kaggle.ipynb",
 )
+# Where the static site (GitHub Pages) sends people to check a video: a hosted
+# copy of this app with its own key (e.g. a Hugging Face Space). Empty means
+# no hosted analyzer yet, and the static site offers Kaggle instead.
+ANALYZER_URL = os.environ.get("ANALYZER_URL", "")
 # One-click examples: one generated clip and one real recording from before 2022.
 EXAMPLES = [
     {"url": "https://www.youtube.com/watch?v=WeIzH2jFsNw", "pt": "Clipe feito com Veo 3", "en": "Clip made with Veo 3"},
@@ -204,6 +208,7 @@ def _home(request: Request, error: str | None = None, status_code: int = 200) ->
         "index.html",
         {"b": benchmark_view(), "reports": _recent(), "allow_live": ALLOW_LIVE, "allow_byok": ALLOW_BYOK, "allow_upload": ALLOW_UPLOAD, "static_site": STATIC_SITE,
          "host_vision": bool(host_provider()) and ALLOW_LIVE, "kaggle_url": KAGGLE_URL, "examples": EXAMPLES,
+         "analyzer_url": ANALYZER_URL,
          "error": error, "limit": PER_IP_DAILY, "providers": PROVIDERS},
         status_code,
     )
