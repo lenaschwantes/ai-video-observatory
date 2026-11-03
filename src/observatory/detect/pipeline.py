@@ -9,7 +9,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from observatory.detect.fetch import fetch, slugify
+from observatory.detect.fetch import fetch, fetch_local, slugify
 from observatory.detect.frames import extract_frames
 from observatory.detect.models import Report, Signal, Verdict
 from observatory.detect.signals import platform_label_signal, provenance_signal, text_signal
@@ -78,3 +78,9 @@ def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch
     )
     (out_dir / "report.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
     return report
+
+
+def analyze_file(path: Path, reports_dir: Path, **kwargs) -> Report:
+    """Same as `analyze`, for a local video file instead of a link. The file
+    itself is left where it is."""
+    return analyze(str(path), reports_dir, fetcher=lambda _url, _tmp: fetch_local(Path(path)), **kwargs)

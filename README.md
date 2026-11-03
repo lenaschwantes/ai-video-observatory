@@ -39,7 +39,8 @@ python -m venv .venv && .venv/Scripts/activate   # source .venv/bin/activate on 
 pip install -e ".[detect,dev]"
 cp .env.example .env                              # add GROQ_API_KEY (or ANTHROPIC_API_KEY) for the visual signal
 
-observatory analyze "https://www.youtube.com/shorts/<id>"   # command line
+observatory analyze "https://www.youtube.com/shorts/<id>"   # command line (YouTube, TikTok, Instagram, X)
+observatory analyze ./clip.mp4                               # or a local file
 observatory serve                                            # web UI at http://127.0.0.1:8000
 ```
 
@@ -69,7 +70,9 @@ The `Dockerfile` runs the web UI on port 7860 and works unchanged on Hugging Fac
 
 Visitors can also **bring their own key** (Groq, Anthropic, OpenAI or Gemini) in the analyzer form. The visual check then runs on their account, so live analysis stays available even with `ALLOW_LIVE=0`, under its own limit (`BYOK_LIMIT_PER_IP`, default 20/day; `ALLOW_BYOK=0` turns it off). The key is used for that one analysis and kept only in memory: it is never written to disk or logs, never returned in a response, and scrubbed from error messages (tested in `tests/test_web.py`). Serve the site over HTTPS.
 
-**Instagram** links work, but Instagram often demands a login even for public Reels, and blocks server IPs more than home ones. When it does, the analyzer says so plainly. To get past it, set `YTDLP_COOKIES` to a `cookies.txt` exported from a *secondary* account (accounts used this way can be blocked; `cookies*.txt` is git-ignored).
+**Instagram and X** links work, but both often demand a login even for public Reels, and blocks server IPs more than home ones. When it does, the analyzer says so plainly. To get past it, set `YTDLP_COOKIES` to a `cookies.txt` exported from a *secondary* account (accounts used this way can be blocked; `cookies*.txt` is git-ignored).
+
+**Local files** (mp4, mov, m4v, webm, mkv, up to 200 MB) can be uploaded in the web form or passed to the CLI. There is no caption or platform label to read, so the estimate rests on the frames and on content credentials, which an original file is far more likely to still carry than a re-encoded post. Uploads are deleted right after analysis; the report is keyed by a hash of the file.
 
 Downloads from cloud servers are sometimes blocked by the platforms. When that happens the site says so; running locally always works.
 

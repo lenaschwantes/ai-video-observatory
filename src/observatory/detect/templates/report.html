@@ -41,7 +41,7 @@
     <p><a href="/#analisar">{{ t('back_analyze') }}</a></p>
     <div class="kicker">{{ r.video.platform }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %}</div>
     <h1 class="prose" style="font-size:clamp(1.8rem,4.5vw,2.8rem)">{{ r.video.title or r.slug }}</h1>
-    <p class="muted"><a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">{{ t('original') }} ↗</a></p>
+    {% if r.video.url %}<p class="muted"><a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">{{ t('original') }} ↗</a></p>{% endif %}
 
     <div class="chart" style="margin-top:24px; padding:28px">
       <div class="verdict">
