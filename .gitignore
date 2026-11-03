@@ -18,3 +18,6 @@ logs/
 
 # benchmark keyframes (third-party content, rebuilt by `observatory bench prepare`)
 eval/cache/
+
+# yt-dlp login cookies
+cookies*.txt

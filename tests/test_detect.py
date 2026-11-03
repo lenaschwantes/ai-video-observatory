@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from observatory.detect.fetch import FetchError, check_url
+from observatory.detect.fetch import LOGIN_MESSAGE, FetchError, check_url, cookies_file, fetch_local, friendly_error
 from observatory.detect.models import Signal, Verdict, VideoInfo
 from observatory.detect.pipeline import analyze, combine
 from observatory.detect.signals import text_signal
@@ -71,6 +71,29 @@ def test_rejects_other_hosts(url):
 
 def test_accepts_supported_hosts():
     assert check_url(" https://www.tiktok.com/@a/video/1 ") == "https://www.tiktok.com/@a/video/1"
+
+
+@pytest.mark.parametrize("url", ["https://www.instagram.com/reel/C0abc123/", "https://instagram.com/p/C0abc123/",
+                                 "https://x.com/user/status/123", "https://twitter.com/user/status/123"])
+def test_accepts_instagram_and_x(url):
+    assert check_url(url) == url
+
+
+def test_login_errors_become_clear_message():
+    raw = "ERROR: [Instagram] C0abc: Requested content is not available, rate-limit reached or login required"
+    assert friendly_error(raw) == LOGIN_MESSAGE
+    assert friendly_error("ERROR: Video unavailable") == "ERROR: Video unavailable"
+
+
+def test_cookies_file_only_when_it_exists(tmp_path, monkeypatch):
+    monkeypatch.delenv("YTDLP_COOKIES", raising=False)
+    assert cookies_file() is None
+    monkeypatch.setenv("YTDLP_COOKIES", str(tmp_path / "missing.txt"))
+    assert cookies_file() is None
+    jar = tmp_path / "cookies.txt"
+    jar.write_text("# Netscape HTTP Cookie File\n")
+    monkeypatch.setenv("YTDLP_COOKIES", str(jar))
+    assert cookies_file() == str(jar)
 
 
 # --- end to end with fakes ----------------------------------------------
@@ -144,3 +167,25 @@ def test_provider_prefers_groq_then_anthropic(monkeypatch):
     assert provider() == "groq"
     monkeypatch.setenv("VISION_PROVIDER", "anthropic")
     assert provider() == "anthropic"
+
+
+# --- local files ---------------------------------------------------------
+
+
+def test_fetch_local_hashes_content(tmp_path):
+    a, b = tmp_path / "a.mp4", tmp_path / "b.MP4"
+    a.write_bytes(b"same bytes")
+    b.write_bytes(b"same bytes")
+    meta_a, path = fetch_local(a)
+    meta_b, _ = fetch_local(b)
+    assert path == a and meta_a.platform == "upload" and meta_a.url == ""
+    assert meta_a.video_id == meta_b.video_id  # same content -> same cached report
+    assert meta_a.title == "a.mp4"
+
+
+@pytest.mark.parametrize("name", ["notes.txt", "missing.mp4"])
+def test_fetch_local_rejects_bad_files(tmp_path, name):
+    if name.endswith(".txt"):
+        (tmp_path / name).write_text("x")
+    with pytest.raises(FetchError):
+        fetch_local(tmp_path / name)
