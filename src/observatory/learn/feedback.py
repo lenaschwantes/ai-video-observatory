@@ -7,7 +7,6 @@ false votes cannot teach the model to accuse real videos."""
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import secrets
 import threading

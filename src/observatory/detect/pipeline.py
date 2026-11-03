@@ -4,8 +4,10 @@ the report and the frames cited as evidence are kept."""
 from __future__ import annotations
 
 import math
+import os
 import shutil
 import tempfile
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -37,8 +39,33 @@ def combine(signals: list[Signal], weights: Weights = DEFAULT) -> tuple[float, V
 
 
 def load_report(reports_dir: Path, slug: str) -> Report | None:
+    """The saved report, or None if it is missing or unreadable. A damaged
+    file (e.g. the server died mid-write before writes were atomic) must not
+    take down every page that lists reports."""
     path = reports_dir / slug / "report.json"
-    return Report.model_validate_json(path.read_text(encoding="utf-8")) if path.exists() else None
+    if not path.exists():
+        return None
+    try:
+        return Report.model_validate_json(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None
+
+
+_slug_locks: dict[str, threading.Lock] = {}
+_slug_locks_guard = threading.Lock()
+
+
+def _lock_for(slug: str) -> threading.Lock:
+    """One lock per video: two people analyzing the same link at once must not
+    delete each other's frames halfway through."""
+    with _slug_locks_guard:
+        return _slug_locks.setdefault(slug, threading.Lock())
+
+
+def _write_atomic(path: Path, text: str) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch, assessor=assess,
@@ -49,19 +76,24 @@ def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch
         progress("download")
         video, video_path = fetcher(url, Path(tmp))
         slug = slugify(video.platform, video.video_id)
-        if not refresh and (cached := load_report(reports_dir, slug)):
-            return cached
-
-        out_dir = reports_dir / slug
-        if out_dir.exists():
-            shutil.rmtree(out_dir)
-        progress("frames")
-        frames = extract_frames(video_path, out_dir)
-        progress("signals")
-        signals = [platform_label_signal(video), provenance_signal(video_path), text_signal(video)]
-        progress("visual")
-        signals.append(visual_signal(frames, out_dir, assessor=assessor))
+        with _lock_for(slug):
+            # checked again inside the lock: a concurrent run may have just finished
+            if not refresh and (cached := load_report(reports_dir, slug)):
+                return cached
+            return _analyze_locked(video, video_path, reports_dir / slug, assessor, progress)
     # leaving the with-block deletes the downloaded video
+
+
+def _analyze_locked(video, video_path: Path, out_dir: Path, assessor, progress) -> Report:
+    slug = out_dir.name
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    progress("frames")
+    frames = extract_frames(video_path, out_dir)
+    progress("signals")
+    signals = [platform_label_signal(video), provenance_signal(video_path), text_signal(video)]
+    progress("visual")
+    signals.append(visual_signal(frames, out_dir, assessor=assessor))
 
     weights = load_current()
     probability, verdict = combine(signals, weights)
@@ -79,7 +111,7 @@ def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch
         frames=[f for f in frames if f.file in cited],
         method_version=weights.version,
     )
-    (out_dir / "report.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
+    _write_atomic(out_dir / "report.json", report.model_dump_json(indent=2))
     return report
 
 

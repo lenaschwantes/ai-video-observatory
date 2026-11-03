@@ -15,8 +15,8 @@ HUMAN_THRESHOLD = 0.25
 def auc(labels: list[int], probs: list[float]) -> float | None:
     """Probability that a random AI video scores above a random real one
     (ties count half). None when one class is missing."""
-    pos = [p for y, p in zip(labels, probs) if y == 1]
-    neg = [p for y, p in zip(labels, probs) if y == 0]
+    pos = [p for y, p in zip(labels, probs, strict=True) if y == 1]
+    neg = [p for y, p in zip(labels, probs, strict=True) if y == 0]
     if not pos or not neg:
         return None
     neg = sorted(neg)
@@ -26,7 +26,7 @@ def auc(labels: list[int], probs: list[float]) -> float | None:
 
 
 def brier(labels: list[int], probs: list[float]) -> float:
-    return sum((p - y) ** 2 for y, p in zip(labels, probs)) / len(labels)
+    return sum((p - y) ** 2 for y, p in zip(labels, probs, strict=True)) / len(labels)
 
 
 def ece(labels: list[int], probs: list[float], bins: int = 5) -> float:
@@ -57,8 +57,8 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float] | None:
 def auc_ci(labels: list[int], probs: list[float], reps: int = 1000, seed: int = 0) -> tuple[float, float] | None:
     """95% percentile bootstrap for the AUC, resampling AI and real videos
     separately so every replicate keeps both classes. Seeded: same data, same CI."""
-    pos = [p for y, p in zip(labels, probs) if y == 1]
-    neg = [p for y, p in zip(labels, probs) if y == 0]
+    pos = [p for y, p in zip(labels, probs, strict=True) if y == 1]
+    neg = [p for y, p in zip(labels, probs, strict=True) if y == 0]
     if not pos or not neg:
         return None
     rng = random.Random(seed)
@@ -72,8 +72,8 @@ def auc_ci(labels: list[int], probs: list[float], reps: int = 1000, seed: int = 
 def recall_at_zero_fpr(labels: list[int], probs: list[float]) -> float | None:
     """Share of AI videos scored above every real video: what the model would
     catch with its threshold set so that no real video in the set is accused."""
-    pos = [p for y, p in zip(labels, probs) if y == 1]
-    neg = [p for y, p in zip(labels, probs) if y == 0]
+    pos = [p for y, p in zip(labels, probs, strict=True) if y == 1]
+    neg = [p for y, p in zip(labels, probs, strict=True) if y == 0]
     if not pos or not neg:
         return None
     return sum(p > max(neg) for p in pos) / len(pos)
@@ -104,9 +104,9 @@ class Scores:
 
 def score(labels: list[int], probs: list[float]) -> Scores:
     n = len(labels)
-    ai = [p for y, p in zip(labels, probs) if y == 1]
-    real = [p for y, p in zip(labels, probs) if y == 0]
-    decided = [(y, p) for y, p in zip(labels, probs) if p >= AI_THRESHOLD or p <= HUMAN_THRESHOLD]
+    ai = [p for y, p in zip(labels, probs, strict=True) if y == 1]
+    real = [p for y, p in zip(labels, probs, strict=True) if y == 0]
+    decided = [(y, p) for y, p in zip(labels, probs, strict=True) if p >= AI_THRESHOLD or p <= HUMAN_THRESHOLD]
     correct = sum(1 for y, p in decided if (p >= AI_THRESHOLD) == (y == 1))
     fp = sum(p >= AI_THRESHOLD for p in real)
     caught = sum(p >= AI_THRESHOLD for p in ai)
@@ -174,7 +174,7 @@ def mcnemar_exact(toward_ai: int, toward_real: int) -> float | None:
 
 
 def fpr_at(labels: list[int], probs: list[float], threshold: float = AI_THRESHOLD) -> float | None:
-    real = [p for y, p in zip(labels, probs) if y == 0]
+    real = [p for y, p in zip(labels, probs, strict=True) if y == 0]
     return sum(p >= threshold for p in real) / len(real) if real else None
 
 
@@ -205,5 +205,5 @@ def paired_delta(labels: list[int], before: list[float], after: list[float], met
 
 def mean_shift(labels: list[int], before: list[float], after: list[float], cls: int) -> float | None:
     """Average change in score for one class (0 = real, 1 = AI)."""
-    d = [a - b for y, a, b in zip(labels, after, before) if y == cls]
+    d = [a - b for y, a, b in zip(labels, after, before, strict=True) if y == cls]
     return round(sum(d) / len(d), 4) if d else None

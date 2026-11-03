@@ -119,7 +119,7 @@ def assess_with(name: str, model: str, frames: list[Frame], frame_dir: Path) -> 
     findings = [
         Finding(frame_index=f.index, observation=f"{name} score {s:.2f}",
                 direction="ai" if s >= 0.75 else "human" if s <= 0.25 else "neutral")
-        for f, s in zip(frames, scores)
+        for f, s in zip(frames, scores, strict=True)
     ]
     assessment = VisualAssessment(ai_likelihood=1 / (1 + math.exp(-mean)), findings=findings,
                                   summary=f"per-frame scores: {', '.join(f'{s:.2f}' for s in scores)}")

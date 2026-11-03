@@ -196,7 +196,7 @@ def status(rows: list[dict], results: Path = RESULTS) -> list[dict]:
 
 
 def _subset_scores(labels, probs, ok, keep) -> dict | None:
-    sub = [(l, p) for l, p, r in zip(labels, probs, ok) if keep(r["id"])]
+    sub = [(l, p) for l, p, r in zip(labels, probs, ok, strict=True) if keep(r["id"])]
     if sub and len({l for l, _ in sub}) > 1:
         return score([l for l, _ in sub], [p for _, p in sub]).as_dict()
     return None
@@ -339,7 +339,7 @@ def robustness_summary(results: Path = RESULTS, cache: Path = CACHE) -> list[dic
     from observatory.bench.robustness import REF, load_manifest
 
     rows = []
-    for base, files in _variant_files(results).items():
+    for _base, files in _variant_files(results).items():
         if (REF, 1) not in files:
             continue
         ref = _ok(_read_jsonl(files[(REF, 1)]))
@@ -361,7 +361,7 @@ def robustness_summary(results: Path = RESULTS, cache: Path = CACHE) -> list[dic
             labels = [1 if ref[i]["label"] == "ai" else 0 for i in ids]
             before = [min(max(float(ref[i]["p"]), 0.0), 1.0) for i in ids]
             after = [min(max(float(var[i]["p"]), 0.0), 1.0) for i in ids]
-            fl = flips(dict(zip(ids, before)), dict(zip(ids, after)))
+            fl = flips(dict(zip(ids, before, strict=True)), dict(zip(ids, after, strict=True)))
             d_fpr, d_fpr_ci = paired_delta(labels, before, after, fpr_at)
             d_auc, d_auc_ci = paired_delta(labels, before, after, auc)
             known = [m for m in manifests.values() if m]

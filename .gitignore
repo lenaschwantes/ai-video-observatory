@@ -24,3 +24,5 @@ cookies*.txt
 
 # static export for GitHub Pages (built in CI)
 site/
+.coverage
+htmlcov/

@@ -77,6 +77,9 @@ def fetch(url: str, workdir: Path) -> tuple[VideoInfo, Path]:
         "format": "bestvideo[vcodec^=avc1][height<=720]/best[vcodec^=avc1][height<=720]/bestvideo[height<=720]/best",
         "outtmpl": str(workdir / "%(id)s.%(ext)s"),
         "noplaylist": True,
+        # a stalled connection must not hold an analysis slot forever
+        "socket_timeout": 30,
+        "retries": 3,
         "max_filesize": MAX_BYTES,
         "quiet": True,
         "noprogress": True,

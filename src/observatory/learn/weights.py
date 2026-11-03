@@ -10,6 +10,7 @@ every attempt."""
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,7 @@ from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[3]
 WEIGHTS_DIR = Path(os.environ.get("WEIGHTS_DIR", ROOT / "weights"))
+log = logging.getLogger(__name__)
 SIGNALS = ("platform_label", "provenance", "text", "visual")
 
 
@@ -41,8 +43,14 @@ def load_current(directory: Path | None = None) -> Weights:
     pointer = directory / "current.json"
     if not pointer.exists():
         return DEFAULT
-    name = json.loads(pointer.read_text(encoding="utf-8"))["version"]
-    return Weights.model_validate_json((directory / f"{name}.json").read_text(encoding="utf-8"))
+    try:
+        name = json.loads(pointer.read_text(encoding="utf-8"))["version"]
+        return Weights.model_validate_json((directory / f"{name}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, KeyError) as exc:
+        # A broken weights file must not stop every analysis. Fall back to the
+        # hand-set v0; reports say which version produced them, so it shows.
+        log.warning("could not load weights from %s (%s); using %s", directory, exc, DEFAULT.version)
+        return DEFAULT
 
 
 def next_version(directory: Path | None = None) -> str:

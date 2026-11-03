@@ -36,6 +36,9 @@ Calibrate carefully:
 
 Return ai_likelihood between 0 and 1."""
 
+# seconds per model call; each SDK also retries on its own
+CALL_TIMEOUT = float(os.environ.get("VISION_TIMEOUT", "120"))
+
 LANGUAGE_NAMES = {"pt": "Brazilian Portuguese", "en": "English"}
 
 
@@ -141,7 +144,7 @@ def _call_anthropic(model: str, frames: list[Frame], frame_dir: Path, api_key: s
         content.append({"type": "text", "text": f"Frame {f.index} at {f.timestamp:.1f}s"})
         content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": _b64(frame_dir / f.file)}})
     content.append({"type": "text", "text": _prompt(len(frames), language)})
-    response = anthropic.Anthropic(api_key=api_key).beta.messages.parse(
+    response = anthropic.Anthropic(api_key=api_key, timeout=CALL_TIMEOUT).beta.messages.parse(
         model=model,
         max_tokens=16000,
         output_config={"effort": "high"},
@@ -168,7 +171,7 @@ def _call_groq(model: str, frames: list[Frame], frame_dir: Path, api_key: str | 
                language: str = "en") -> tuple[VisualAssessment, Usage]:
     from groq import Groq
 
-    completion = Groq(api_key=api_key, max_retries=5).chat.completions.create(
+    completion = Groq(api_key=api_key, max_retries=5, timeout=CALL_TIMEOUT).chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir, language)}],
         response_format={"type": "json_object"},
@@ -181,7 +184,7 @@ def _call_openai(model: str, frames: list[Frame], frame_dir: Path, api_key: str 
                  language: str = "en") -> tuple[VisualAssessment, Usage]:
     from openai import OpenAI
 
-    completion = OpenAI(api_key=api_key, max_retries=5).chat.completions.create(
+    completion = OpenAI(api_key=api_key, max_retries=5, timeout=CALL_TIMEOUT).chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir, language)}],
         response_format={"type": "json_object"},
@@ -200,7 +203,7 @@ def _call_gemini(model: str, frames: list[Frame], frame_dir: Path, api_key: str 
         parts.append(f"Frame {f.index} at {f.timestamp:.1f}s")
         parts.append(types.Part.from_bytes(data=(frame_dir / f.file).read_bytes(), mime_type="image/jpeg"))
     parts.append(_prompt(len(frames), language) + JSON_INSTRUCTIONS)
-    response = genai.Client(api_key=api_key).models.generate_content(
+    response = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=int(CALL_TIMEOUT * 1000))).models.generate_content(
         model=model,
         contents=parts,
         config=types.GenerateContentConfig(response_mime_type="application/json"),
@@ -279,3 +282,49 @@ def visual_signal(frames: list[Frame], frame_dir: Path, assessor=assess) -> Sign
     note = f"{result.summary} (model: {model_name()})" if default else result.summary
     # Shrink the model's log-odds: an uncalibrated judge should not dominate.
     return Signal(name="visual", label=label, available=True, llr=0.8 * math.log(p / (1 - p)), evidence=evidence, note=note)
+
+
+# --- key check: list the vision models a key can use ---------------------------
+
+# Groq serves few vision models; these are the ones its vision docs list.
+GROQ_VISION_MODELS = ("qwen/qwen3.8-27b", "meta-models/muse-spark-open")
+_OPENAI_SKIP = ("audio", "realtime", "tts", "transcribe", "search", "embedding", "image", "instruct", "moderation")
+_GEMINI_SKIP = ("embedding", "tts", "image", "audio", "live", "aqa")
+
+
+def _rank(models: list[str], prefer: tuple[str, ...]) -> list[str]:
+    """Sort with the preferred substrings first, then alphabetically."""
+    return sorted(set(models), key=lambda m: (next((i for i, p in enumerate(prefer) if p in m), len(prefer)), m))
+
+
+def list_vision_models(name: str, api_key: str) -> list[str]:
+    """Vision-capable models this key can call, best default first. Raises the
+    provider's own error if the key is refused. Nothing is stored."""
+    if name == "groq":
+        from groq import Groq
+
+        ids = [m.id for m in Groq(api_key=api_key, timeout=30).models.list().data]
+        return [m for m in GROQ_VISION_MODELS if m in ids]
+    if name == "anthropic":
+        import anthropic
+
+        ids = [m.id for m in anthropic.Anthropic(api_key=api_key, timeout=30).models.list()]
+        return _rank([m for m in ids if m.startswith("claude")], (PROVIDERS["anthropic"].default_model or "", "opus", "sonnet"))
+    if name == "openai":
+        from openai import OpenAI
+
+        ids = [m.id for m in OpenAI(api_key=api_key, timeout=30).models.list()]
+        keep = [m for m in ids if m.startswith(("gpt-", "o")) and not any(s in m for s in _OPENAI_SKIP)]
+        return _rank(keep, ("gpt-",))
+    if name == "gemini":
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=30_000))
+        keep = []
+        for m in client.models.list():
+            short = (m.name or "").removeprefix("models/")
+            if "gemini" in short and "generateContent" in (m.supported_actions or []) and not any(s in short for s in _GEMINI_SKIP):
+                keep.append(short)
+        return _rank(keep, ("flash",))  # flash models carry the free tier
+    raise ValueError(f"unknown provider: {name}")

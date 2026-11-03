@@ -30,7 +30,7 @@ from observatory.detect import docs, i18n
 from observatory.detect.fetch import MAX_BYTES, VIDEO_SUFFIXES, FetchError, check_url
 from observatory.detect.models import Report
 from observatory.detect.pipeline import AI_THRESHOLD, HUMAN_THRESHOLD, analyze, analyze_file, load_report
-from observatory.detect.vision import PROVIDERS, assess, assess_with
+from observatory.detect.vision import PROVIDERS, assess, assess_with, list_vision_models, provider as host_provider
 
 ROOT = Path(__file__).resolve().parents[3]
 REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", "data/reports"))
@@ -44,6 +44,17 @@ ALLOW_BYOK = os.environ.get("ALLOW_BYOK", "1") != "0"
 # Uploads put arbitrary third-party video on the server: on by default for local
 # use, off in the Docker image (ALLOW_UPLOAD=0) so a public site does not host them.
 ALLOW_UPLOAD = os.environ.get("ALLOW_UPLOAD", "1") != "0"
+# "Open in Kaggle": Kaggle imports a notebook straight from a public GitHub URL,
+# so the button works before anyone publishes it there. Override once published.
+KAGGLE_URL = os.environ.get(
+    "KAGGLE_NOTEBOOK_URL",
+    "https://www.kaggle.com/kernels/welcome?src=https://github.com/lenaschwantes/ai-video-observatory/blob/main/notebooks/analyze_on_kaggle.ipynb",
+)
+# One-click examples: one generated clip and one real recording from before 2022.
+EXAMPLES = [
+    {"url": "https://www.youtube.com/watch?v=WeIzH2jFsNw", "pt": "Clipe feito com Veo 3", "en": "Clip made with Veo 3"},
+    {"url": "https://www.youtube.com/watch?v=jNQXAC9IVRw", "pt": "Primeiro vídeo do YouTube (2005)", "en": "First YouTube video (2005)"},
+]
 # Set by scripts/export_static.py: the page is a read-only copy (GitHub Pages).
 STATIC_SITE = os.environ.get("STATIC_SITE") == "1"
 BYOK_PER_IP_DAILY = int(os.environ.get("BYOK_LIMIT_PER_IP", "20"))
@@ -192,12 +203,27 @@ def _home(request: Request, error: str | None = None, status_code: int = 200) ->
         request,
         "index.html",
         {"b": benchmark_view(), "reports": _recent(), "allow_live": ALLOW_LIVE, "allow_byok": ALLOW_BYOK, "allow_upload": ALLOW_UPLOAD, "static_site": STATIC_SITE,
+         "host_vision": bool(host_provider()) and ALLOW_LIVE, "kaggle_url": KAGGLE_URL, "examples": EXAMPLES,
          "error": error, "limit": PER_IP_DAILY, "providers": PROVIDERS},
         status_code,
     )
 
 
 # --- routes ------------------------------------------------------------------
+
+
+MAX_REQUEST_BYTES = MAX_BYTES + 1024 * 1024  # largest upload plus form fields
+
+
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    """Refuse oversized bodies from the header, before Starlette spools them to
+    disk: the per-chunk check in _save_upload only runs after the whole upload
+    has already been received."""
+    length = request.headers.get("content-length")
+    if request.method == "POST" and length and length.isdigit() and int(length) > MAX_REQUEST_BYTES:
+        return JSONResponse({"detail": "request too large"}, status_code=413)
+    return await call_next(request)
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -215,6 +241,18 @@ def index(request: Request):
 
 STAGES = ["download", "frames", "signals", "visual"]
 _jobs: dict[str, dict] = {}
+_jobs_guard = threading.Lock()
+# A video analysis holds a download, OpenCV and a model call: cap how many run
+# at once so a burst of visitors cannot exhaust CPU, disk or memory.
+MAX_JOBS = int(os.environ.get("MAX_CONCURRENT_JOBS", "2"))
+_job_slots = threading.BoundedSemaphore(MAX_JOBS)
+JOB_TTL = 3600  # finished jobs are forgotten after an hour
+
+
+def _prune_jobs(now: float) -> None:
+    with _jobs_guard:
+        for job_id in [j for j, job in _jobs.items() if job.get("ended") and now - job["ended"] > JOB_TTL]:
+            del _jobs[job_id]
 
 
 class BYOK:
@@ -286,8 +324,11 @@ def _assessor_for(byok: BYOK | None, language: str):
 
 
 def _start_job(url: str, byok: BYOK | None = None, upload: Path | None = None, language: str = "en") -> str:
+    _prune_jobs(time.time())
     job_id = uuid.uuid4().hex[:12]
-    job = _jobs[job_id] = {"stage": "download", "slug": None, "error": None}
+    job = {"stage": "download", "slug": None, "error": None, "ended": None}
+    with _jobs_guard:
+        _jobs[job_id] = job
     kwargs = {"assessor": _assessor_for(byok, language)}
 
     def work():
@@ -297,6 +338,9 @@ def _start_job(url: str, byok: BYOK | None = None, upload: Path | None = None, l
         except Exception as exc:  # shown to the visitor, so keep it short
             msg = str(exc)
             job.update(stage="error", error=(byok.scrub(msg) if byok else msg)[:200])
+        finally:
+            job["ended"] = time.time()
+            _job_slots.release()
 
     threading.Thread(target=work, daemon=True).start()
     return job_id
@@ -369,6 +413,11 @@ def run_analysis(
             upload = _save_upload(file)
         except FetchError as exc:
             return fail(("Arquivo recusado: " if pt else "File rejected: ") + str(exc), 400)
+    if not _job_slots.acquire(blocking=False):
+        if upload is not None:
+            shutil.rmtree(upload.parent, ignore_errors=True)
+        return fail("O servidor está ocupado com outras análises. Tente de novo em um minuto." if pt
+                    else "The server is busy with other analyses. Try again in a minute.", 503)
     if htmx:
         return _progress(request, _start_job(url, byok, upload, _lang(request)))
     try:
@@ -376,7 +425,44 @@ def run_analysis(
     except FetchError as exc:
         msg = str(exc)
         return fail(("Não foi possível baixar o vídeo: " if pt else "Could not download the video: ") + (byok.scrub(msg) if byok else msg)[:200], 422)
+    finally:
+        _job_slots.release()
     return RedirectResponse(f"/report/{report.slug}", status_code=303)
+
+
+KEYCHECK_PER_IP_DAILY = 30
+
+
+@app.post("/api/keys/check")
+def check_key(request: Request, provider: str = Form(""), api_key: str = Form("")):
+    """Validate a visitor's key before any video is downloaded and list the
+    vision models it can use. The key is used for this one call and never
+    returned, logged or stored."""
+    pt = _lang(request) == "pt"
+    key = (api_key or "").strip()
+    if provider not in PROVIDERS:
+        return JSONResponse({"ok": False, "error": "Escolha um provedor." if pt else "Pick a provider."}, status_code=400)
+    if not 10 <= len(key) <= 300 or any(c.isspace() for c in key):
+        return JSONResponse({"ok": False, "error": "Essa chave não parece válida." if pt else "That key does not look valid."},
+                            status_code=400)
+    ip = request.client.host if request.client else "unknown"
+    bucket = f"keycheck:{ip}"
+    if not _within_limits(bucket, KEYCHECK_PER_IP_DAILY, count_global=False):
+        return JSONResponse({"ok": False, "error": "Limite de testes atingido hoje." if pt else "Too many key checks today."},
+                            status_code=429)
+    _usage[bucket].append(time.time())
+    try:
+        models = list_vision_models(provider, key)
+    except Exception as exc:  # each SDK raises its own types; the message is scrubbed below
+        status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+        refused = status in (401, 403) or any(w in str(exc).lower() for w in ("auth", "invalid api key", "api key not valid", "permission"))
+        msg = ("O provedor recusou a chave." if pt else "The provider refused the key.") if refused else (
+            ("Não foi possível falar com o provedor: " if pt else "Could not reach the provider: ") + str(exc).replace(key, "***")[:160])
+        return JSONResponse({"ok": False, "error": msg}, status_code=200)
+    if not models:
+        return JSONResponse({"ok": False, "error": ("A chave funciona, mas não achamos modelos de visão nela." if pt
+                                                    else "The key works, but no vision models were found for it.")})
+    return JSONResponse({"ok": True, "models": models, "default": models[0]})
 
 
 @app.get("/benchmarks", response_class=HTMLResponse)
