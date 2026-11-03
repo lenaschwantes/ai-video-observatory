@@ -1,0 +1,945 @@
+[
+ {
+  "id": "synthetic-00022",
+  "desc": "synthetic clip 22 #sora",
+  "createTime": 1790966280,
+  "author": {
+   "uniqueId": "synthetic_creator_02"
+  },
+  "music": {
+   "id": "synthetic-music-019"
+  },
+  "challenges": [
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 315058,
+   "diggCount": 33540,
+   "commentCount": 2528,
+   "shareCount": 4636
+  }
+ },
+ {
+  "id": "synthetic-00031",
+  "desc": "synthetic clip 31 #aivideo",
+  "createTime": 1791037560,
+  "author": {
+   "uniqueId": "synthetic_creator_56"
+  },
+  "music": {
+   "id": "synthetic-music-020"
+  },
+  "challenges": [
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 121792,
+   "diggCount": 10263,
+   "commentCount": 923,
+   "shareCount": 626
+  }
+ },
+ {
+  "id": "synthetic-00015",
+  "desc": "synthetic clip 15 #sora",
+  "createTime": 1790971560,
+  "author": {
+   "uniqueId": "synthetic_creator_03"
+  },
+  "music": {
+   "id": "synthetic-music-012"
+  },
+  "challenges": [
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 221605,
+   "diggCount": 15853,
+   "commentCount": 1303,
+   "shareCount": 3286
+  }
+ },
+ {
+  "id": "synthetic-00012",
+  "desc": "synthetic clip 12 #aiasmr #sora",
+  "createTime": 1790815380,
+  "author": {
+   "uniqueId": "synthetic_creator_46"
+  },
+  "music": {
+   "id": "synthetic-music-003"
+  },
+  "challenges": [
+   {
+    "title": "aiasmr"
+   },
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 345862,
+   "diggCount": 25839,
+   "commentCount": 1639,
+   "shareCount": 5218
+  }
+ },
+ {
+  "id": "synthetic-00002",
+  "desc": "synthetic clip 2 #aivideo #kling",
+  "createTime": 1790849820,
+  "author": {
+   "uniqueId": "synthetic_creator_09"
+  },
+  "music": {
+   "id": "synthetic-music-006"
+  },
+  "challenges": [
+   {
+    "title": "aivideo"
+   },
+   {
+    "title": "kling"
+   }
+  ],
+  "stats": {
+   "playCount": 365042,
+   "diggCount": 26171,
+   "commentCount": 2258,
+   "shareCount": 4789
+  }
+ },
+ {
+  "id": "synthetic-00035",
+  "desc": "synthetic clip 35 #aicomedy #aifilter",
+  "createTime": 1791044820,
+  "author": {
+   "uniqueId": "synthetic_creator_53"
+  },
+  "music": {
+   "id": "synthetic-music-029"
+  },
+  "challenges": [
+   {
+    "title": "aicomedy"
+   },
+   {
+    "title": "aifilter"
+   }
+  ],
+  "stats": {
+   "playCount": 63299,
+   "diggCount": 5719,
+   "commentCount": 153,
+   "shareCount": 350
+  }
+ },
+ {
+  "id": "synthetic-00029",
+  "desc": "synthetic clip 29 #aianimation",
+  "createTime": 1790931420,
+  "author": {
+   "uniqueId": "synthetic_creator_58"
+  },
+  "music": {
+   "id": "synthetic-music-027"
+  },
+  "challenges": [
+   {
+    "title": "aianimation"
+   }
+  ],
+  "stats": {
+   "playCount": 215962,
+   "diggCount": 20928,
+   "commentCount": 1431,
+   "shareCount": 2608
+  }
+ },
+ {
+  "id": "synthetic-00042",
+  "desc": "synthetic clip 42 #aianimation #aicomedy",
+  "createTime": 1791052560,
+  "author": {
+   "uniqueId": "synthetic_creator_42"
+  },
+  "music": {
+   "id": "synthetic-music-000"
+  },
+  "challenges": [
+   {
+    "title": "aianimation"
+   },
+   {
+    "title": "aicomedy"
+   }
+  ],
+  "stats": {
+   "playCount": 56885,
+   "diggCount": 4325,
+   "commentCount": 384,
+   "shareCount": 452
+  }
+ },
+ {
+  "id": "synthetic-00027",
+  "desc": "synthetic clip 27 #aiasmr #kling",
+  "createTime": 1790975160,
+  "author": {
+   "uniqueId": "synthetic_creator_56"
+  },
+  "music": {
+   "id": "synthetic-music-004"
+  },
+  "challenges": [
+   {
+    "title": "aiasmr"
+   },
+   {
+    "title": "kling"
+   }
+  ],
+  "stats": {
+   "playCount": 131753,
+   "diggCount": 9748,
+   "commentCount": 844,
+   "shareCount": 1413
+  }
+ },
+ {
+  "id": "synthetic-00009",
+  "desc": "synthetic clip 9 #aivideo #veo",
+  "createTime": 1790828160,
+  "author": {
+   "uniqueId": "synthetic_creator_08"
+  },
+  "music": {
+   "id": "synthetic-music-007"
+  },
+  "challenges": [
+   {
+    "title": "aivideo"
+   },
+   {
+    "title": "veo"
+   }
+  ],
+  "stats": {
+   "playCount": 353522,
+   "diggCount": 24481,
+   "commentCount": 1286,
+   "shareCount": 3137
+  }
+ },
+ {
+  "id": "synthetic-00036",
+  "desc": "synthetic clip 36 #aianimation #aicomedy",
+  "createTime": 1791013980,
+  "author": {
+   "uniqueId": "synthetic_creator_40"
+  },
+  "music": {
+   "id": "synthetic-music-008"
+  },
+  "challenges": [
+   {
+    "title": "aianimation"
+   },
+   {
+    "title": "aicomedy"
+   }
+  ],
+  "stats": {
+   "playCount": 48537,
+   "diggCount": 3121,
+   "commentCount": 483,
+   "shareCount": 243
+  }
+ },
+ {
+  "id": "synthetic-00032",
+  "desc": "synthetic clip 32 #aianimation",
+  "createTime": 1791002460,
+  "author": {
+   "uniqueId": "synthetic_creator_44"
+  },
+  "music": {
+   "id": "synthetic-music-000"
+  },
+  "challenges": [
+   {
+    "title": "aianimation"
+   }
+  ],
+  "stats": {
+   "playCount": 45912,
+   "diggCount": 3639,
+   "commentCount": 412,
+   "shareCount": 585
+  }
+ },
+ {
+  "id": "synthetic-00025",
+  "desc": "synthetic clip 25 #aivideo",
+  "createTime": 1790910240,
+  "author": {
+   "uniqueId": "synthetic_creator_34"
+  },
+  "music": {
+   "id": "synthetic-music-006"
+  },
+  "challenges": [
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 103722,
+   "diggCount": 8455,
+   "commentCount": 639,
+   "shareCount": 1262
+  }
+ },
+ {
+  "id": "synthetic-00024",
+  "desc": "synthetic clip 24 #aiart #sora",
+  "createTime": 1790938740,
+  "author": {
+   "uniqueId": "synthetic_creator_48"
+  },
+  "music": {
+   "id": "synthetic-music-029"
+  },
+  "challenges": [
+   {
+    "title": "aiart"
+   },
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 115110,
+   "diggCount": 8073,
+   "commentCount": 819,
+   "shareCount": 1343
+  }
+ },
+ {
+  "id": "synthetic-00020",
+  "desc": "synthetic clip 20 #aiart #aivideo",
+  "createTime": 1790902980,
+  "author": {
+   "uniqueId": "synthetic_creator_37"
+  },
+  "music": {
+   "id": "synthetic-music-015"
+  },
+  "challenges": [
+   {
+    "title": "aiart"
+   },
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 82842,
+   "diggCount": 5717,
+   "commentCount": 355,
+   "shareCount": 1474
+  }
+ },
+ {
+  "id": "synthetic-00040",
+  "desc": "synthetic clip 40 #aifilter #veo",
+  "createTime": 1791034440,
+  "author": {
+   "uniqueId": "synthetic_creator_47"
+  },
+  "music": {
+   "id": "synthetic-music-023"
+  },
+  "challenges": [
+   {
+    "title": "aifilter"
+   },
+   {
+    "title": "veo"
+   }
+  ],
+  "stats": {
+   "playCount": 35649,
+   "diggCount": 4128,
+   "commentCount": 130,
+   "shareCount": 234
+  }
+ },
+ {
+  "id": "synthetic-00034",
+  "desc": "synthetic clip 34 #aifilter",
+  "createTime": 1791038520,
+  "author": {
+   "uniqueId": "synthetic_creator_33"
+  },
+  "music": {
+   "id": "synthetic-music-017"
+  },
+  "challenges": [
+   {
+    "title": "aifilter"
+   }
+  ],
+  "stats": {
+   "playCount": 34036,
+   "diggCount": 2662,
+   "commentCount": 291,
+   "shareCount": 333
+  }
+ },
+ {
+  "id": "synthetic-00039",
+  "desc": "synthetic clip 39 #aiart #sora",
+  "createTime": 1791064860,
+  "author": {
+   "uniqueId": "synthetic_creator_54"
+  },
+  "music": {
+   "id": "synthetic-music-028"
+  },
+  "challenges": [
+   {
+    "title": "aiart"
+   },
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 32821,
+   "diggCount": 2114,
+   "commentCount": 228,
+   "shareCount": 438
+  }
+ },
+ {
+  "id": "synthetic-00028",
+  "desc": "synthetic clip 28 #aivideo",
+  "createTime": 1790968380,
+  "author": {
+   "uniqueId": "synthetic_creator_45"
+  },
+  "music": {
+   "id": "synthetic-music-010"
+  },
+  "challenges": [
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 77942,
+   "diggCount": 6539,
+   "commentCount": 647,
+   "shareCount": 916
+  }
+ },
+ {
+  "id": "synthetic-00041",
+  "desc": "synthetic clip 41 #veo",
+  "createTime": 1791030060,
+  "author": {
+   "uniqueId": "synthetic_creator_42"
+  },
+  "music": {
+   "id": "synthetic-music-021"
+  },
+  "challenges": [
+   {
+    "title": "veo"
+   }
+  ],
+  "stats": {
+   "playCount": 29320,
+   "diggCount": 1541,
+   "commentCount": 99,
+   "shareCount": 125
+  }
+ },
+ {
+  "id": "synthetic-00023",
+  "desc": "synthetic clip 23 #sora",
+  "createTime": 1790928780,
+  "author": {
+   "uniqueId": "synthetic_creator_42"
+  },
+  "music": {
+   "id": "synthetic-music-022"
+  },
+  "challenges": [
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 94392,
+   "diggCount": 4917,
+   "commentCount": 824,
+   "shareCount": 1007
+  }
+ },
+ {
+  "id": "synthetic-00037",
+  "desc": "synthetic clip 37 #aiart #kling",
+  "createTime": 1791015660,
+  "author": {
+   "uniqueId": "synthetic_creator_20"
+  },
+  "music": {
+   "id": "synthetic-music-028"
+  },
+  "challenges": [
+   {
+    "title": "aiart"
+   },
+   {
+    "title": "kling"
+   }
+  ],
+  "stats": {
+   "playCount": 25221,
+   "diggCount": 2232,
+   "commentCount": 209,
+   "shareCount": 172
+  }
+ },
+ {
+  "id": "synthetic-00021",
+  "desc": "synthetic clip 21 #aivideo",
+  "createTime": 1790908680,
+  "author": {
+   "uniqueId": "synthetic_creator_04"
+  },
+  "music": {
+   "id": "synthetic-music-021"
+  },
+  "challenges": [
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 80378,
+   "diggCount": 8877,
+   "commentCount": 590,
+   "shareCount": 717
+  }
+ },
+ {
+  "id": "synthetic-00017",
+  "desc": "synthetic clip 17 #aiart #aifilter",
+  "createTime": 1790960760,
+  "author": {
+   "uniqueId": "synthetic_creator_03"
+  },
+  "music": {
+   "id": "synthetic-music-020"
+  },
+  "challenges": [
+   {
+    "title": "aiart"
+   },
+   {
+    "title": "aifilter"
+   }
+  ],
+  "stats": {
+   "playCount": 42790,
+   "diggCount": 3189,
+   "commentCount": 343,
+   "shareCount": 339
+  }
+ },
+ {
+  "id": "synthetic-00014",
+  "desc": "synthetic clip 14 #aianimation #aiasmr",
+  "createTime": 1790885940,
+  "author": {
+   "uniqueId": "synthetic_creator_53"
+  },
+  "music": {
+   "id": "synthetic-music-020"
+  },
+  "challenges": [
+   {
+    "title": "aianimation"
+   },
+   {
+    "title": "aiasmr"
+   }
+  ],
+  "stats": {
+   "playCount": 95807,
+   "diggCount": 7695,
+   "commentCount": 331,
+   "shareCount": 1103
+  }
+ },
+ {
+  "id": "synthetic-00043",
+  "desc": "synthetic clip 43 #runway",
+  "createTime": 1790990160,
+  "author": {
+   "uniqueId": "synthetic_creator_24"
+  },
+  "music": {
+   "id": "synthetic-music-010"
+  },
+  "challenges": [
+   {
+    "title": "runway"
+   }
+  ],
+  "stats": {
+   "playCount": 16244,
+   "diggCount": 1568,
+   "commentCount": 123,
+   "shareCount": 174
+  }
+ },
+ {
+  "id": "synthetic-00038",
+  "desc": "synthetic clip 38 #aivideo",
+  "createTime": 1791065580,
+  "author": {
+   "uniqueId": "synthetic_creator_04"
+  },
+  "music": {
+   "id": "synthetic-music-013"
+  },
+  "challenges": [
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 14888,
+   "diggCount": 1132,
+   "commentCount": 82,
+   "shareCount": 262
+  }
+ },
+ {
+  "id": "synthetic-00007",
+  "desc": "synthetic clip 7 #aianimation #runway",
+  "createTime": 1790864640,
+  "author": {
+   "uniqueId": "synthetic_creator_17"
+  },
+  "music": {
+   "id": "synthetic-music-029"
+  },
+  "challenges": [
+   {
+    "title": "aianimation"
+   },
+   {
+    "title": "runway"
+   }
+  ],
+  "stats": {
+   "playCount": 109295,
+   "diggCount": 11171,
+   "commentCount": 918,
+   "shareCount": 1594
+  }
+ },
+ {
+  "id": "synthetic-00010",
+  "desc": "synthetic clip 10 #aianimation #sora",
+  "createTime": 1790829120,
+  "author": {
+   "uniqueId": "synthetic_creator_31"
+  },
+  "music": {
+   "id": "synthetic-music-002"
+  },
+  "challenges": [
+   {
+    "title": "aianimation"
+   },
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 112016,
+   "diggCount": 9652,
+   "commentCount": 514,
+   "shareCount": 1616
+  }
+ },
+ {
+  "id": "synthetic-00006",
+  "desc": "synthetic clip 6 #sora",
+  "createTime": 1790832180,
+  "author": {
+   "uniqueId": "synthetic_creator_22"
+  },
+  "music": {
+   "id": "synthetic-music-006"
+  },
+  "challenges": [
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 55433,
+   "diggCount": 5184,
+   "commentCount": 339,
+   "shareCount": 708
+  }
+ },
+ {
+  "id": "synthetic-00008",
+  "desc": "synthetic clip 8 #runway",
+  "createTime": 1790837880,
+  "author": {
+   "uniqueId": "synthetic_creator_36"
+  },
+  "music": {
+   "id": "synthetic-music-028"
+  },
+  "challenges": [
+   {
+    "title": "runway"
+   }
+  ],
+  "stats": {
+   "playCount": 68381,
+   "diggCount": 5010,
+   "commentCount": 330,
+   "shareCount": 1154
+  }
+ },
+ {
+  "id": "synthetic-00013",
+  "desc": "synthetic clip 13 #aianimation #aiart",
+  "createTime": 1790815560,
+  "author": {
+   "uniqueId": "synthetic_creator_56"
+  },
+  "music": {
+   "id": "synthetic-music-023"
+  },
+  "challenges": [
+   {
+    "title": "aianimation"
+   },
+   {
+    "title": "aiart"
+   }
+  ],
+  "stats": {
+   "playCount": 68668,
+   "diggCount": 7457,
+   "commentCount": 506,
+   "shareCount": 520
+  }
+ },
+ {
+  "id": "synthetic-00030",
+  "desc": "synthetic clip 30 #kling #veo",
+  "createTime": 1791013380,
+  "author": {
+   "uniqueId": "synthetic_creator_19"
+  },
+  "music": {
+   "id": "synthetic-music-007"
+  },
+  "challenges": [
+   {
+    "title": "kling"
+   },
+   {
+    "title": "veo"
+   }
+  ],
+  "stats": {
+   "playCount": 11392,
+   "diggCount": 468,
+   "commentCount": 71,
+   "shareCount": 87
+  }
+ },
+ {
+  "id": "synthetic-00004",
+  "desc": "synthetic clip 4 #aiasmr #veo",
+  "createTime": 1790887140,
+  "author": {
+   "uniqueId": "synthetic_creator_56"
+  },
+  "music": {
+   "id": "synthetic-music-027"
+  },
+  "challenges": [
+   {
+    "title": "aiasmr"
+   },
+   {
+    "title": "veo"
+   }
+  ],
+  "stats": {
+   "playCount": 52986,
+   "diggCount": 4538,
+   "commentCount": 388,
+   "shareCount": 728
+  }
+ },
+ {
+  "id": "synthetic-00026",
+  "desc": "synthetic clip 26 #aiart #aivideo",
+  "createTime": 1790932200,
+  "author": {
+   "uniqueId": "synthetic_creator_28"
+  },
+  "music": {
+   "id": "synthetic-music-026"
+  },
+  "challenges": [
+   {
+    "title": "aiart"
+   },
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 28503,
+   "diggCount": 2061,
+   "commentCount": 131,
+   "shareCount": 361
+  }
+ },
+ {
+  "id": "synthetic-00018",
+  "desc": "synthetic clip 18 #aifilter",
+  "createTime": 1790924100,
+  "author": {
+   "uniqueId": "synthetic_creator_25"
+  },
+  "music": {
+   "id": "synthetic-music-028"
+  },
+  "challenges": [
+   {
+    "title": "aifilter"
+   }
+  ],
+  "stats": {
+   "playCount": 31553,
+   "diggCount": 1874,
+   "commentCount": 266,
+   "shareCount": 283
+  }
+ },
+ {
+  "id": "synthetic-00016",
+  "desc": "synthetic clip 16 #aicomedy #aivideo",
+  "createTime": 1790915220,
+  "author": {
+   "uniqueId": "synthetic_creator_11"
+  },
+  "music": {
+   "id": "synthetic-music-008"
+  },
+  "challenges": [
+   {
+    "title": "aicomedy"
+   },
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 33052,
+   "diggCount": 2585,
+   "commentCount": 132,
+   "shareCount": 466
+  }
+ },
+ {
+  "id": "synthetic-00044",
+  "desc": "synthetic clip 44 #sora",
+  "createTime": 1791017280,
+  "author": {
+   "uniqueId": "synthetic_creator_53"
+  },
+  "music": {
+   "id": "synthetic-music-013"
+  },
+  "challenges": [
+   {
+    "title": "sora"
+   }
+  ],
+  "stats": {
+   "playCount": 8549,
+   "diggCount": 973,
+   "commentCount": 70,
+   "shareCount": 116
+  }
+ },
+ {
+  "id": "synthetic-00000",
+  "desc": "synthetic clip 0 #aivideo",
+  "createTime": 1790895960,
+  "author": {
+   "uniqueId": "synthetic_creator_43"
+  },
+  "music": {
+   "id": "synthetic-music-023"
+  },
+  "challenges": [
+   {
+    "title": "aivideo"
+   }
+  ],
+  "stats": {
+   "playCount": 54812,
+   "diggCount": 3444,
+   "commentCount": 297,
+   "shareCount": 342
+  }
+ },
+ {
+  "id": "synthetic-00011",
+  "desc": "synthetic clip 11 #aicomedy",
+  "createTime": 1790890020,
+  "author": {
+   "uniqueId": "synthetic_creator_38"
+  },
+  "music": {
+   "id": "synthetic-music-002"
+  },
+  "challenges": [
+   {
+    "title": "aicomedy"
+   }
+  ],
+  "stats": {
+   "playCount": 41469,
+   "diggCount": 2171,
+   "commentCount": 192,
+   "shareCount": 369
+  }
+ }
+]

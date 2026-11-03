@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: stg_video_snapshots
+    description: One row per video per capture day, deduplicated across sources.
+    columns:
+      - name: video_id
+        data_tests: [not_null]
+      - name: captured_on
+        data_tests: [not_null]
+      - name: source
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["fixture", "tiktokapi"]
+      - name: views
+        data_tests: [not_null]

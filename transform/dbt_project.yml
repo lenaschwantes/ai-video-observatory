@@ -1,0 +1,18 @@
+name: observatory
+version: "0.1.0"
+profile: observatory
+config-version: 2
+
+model-paths: ["models"]
+test-paths: ["tests"]
+
+vars:
+  # Relative to where dbt is run from (the repo root, see README).
+  raw_path: "data/raw"
+
+models:
+  observatory:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-video-observatory"
+version = "0.1.0"
+description = "Daily pipeline that tracks AI-generated TikTok videos, classifies them and flags emerging trends before they peak."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "duckdb>=1.1",
+    "dbt-duckdb>=1.9",
+]
+
+[project.optional-dependencies]
+tiktok = ["TikTokApi>=6.5"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+observatory = "observatory.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/observatory"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

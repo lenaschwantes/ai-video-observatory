@@ -1,0 +1,7 @@
+observatory:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('OBSERVATORY_DB', 'data/observatory.duckdb') }}"
+      threads: 4

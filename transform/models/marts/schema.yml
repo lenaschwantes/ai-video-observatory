@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: fct_video_daily
+    description: Views gained per video per day.
+    columns:
+      - name: views_gained
+        data_tests: [not_null]
+  - name: mart_hashtag_daily
+    description: Daily views gained and video count per hashtag.
+    columns:
+      - name: tag
+        data_tests: [not_null]
