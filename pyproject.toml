@@ -29,7 +29,7 @@ detect = [
     "jinja2>=3.1",
     "python-multipart>=0.0.9",
 ]
-bench = ["openai>=1.50", "google-genai>=1.0"]
+bench = ["openai>=1.50", "google-genai>=1.0", "imageio-ffmpeg>=0.5"]
 eval = ["deepeval>=3.0"]
 dev = ["pytest>=8"]
 

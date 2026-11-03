@@ -5,7 +5,12 @@ prepare  downloads each dataset video once, keeps only its keyframes
 run      sends the cached frames to one provider/model; results are appended
          to eval/results/<provider>__<model>.jsonl, so an interrupted run
          resumes where it stopped.
-report   scores every results file and writes docs/benchmarks.{md,json}."""
+report   scores every results file and writes docs/benchmarks.{md,json}.
+
+Robustness (see robustness.py): `prepare --variants` builds re-encoded
+versions in eval/cache/<id>@<variant>; `run --variant` writes
+<provider>__<model>@<variant>.jsonl (".r2" for a repeat run); `report` adds a
+re-compression section comparing each version with `ref`."""
 
 from __future__ import annotations
 
@@ -16,7 +21,17 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from observatory.bench.metrics import AI_THRESHOLD, HUMAN_THRESHOLD, score
+from observatory.bench.metrics import (
+    AI_THRESHOLD,
+    HUMAN_THRESHOLD,
+    auc,
+    flips,
+    fpr_at,
+    mcnemar_exact,
+    mean_shift,
+    paired_delta,
+    score,
+)
 from observatory.detect.models import Frame
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -75,8 +90,10 @@ def prepare(rows: list[dict], cache: Path = CACHE, fetcher=None, pause: float = 
         print(f"[ok] {row['id']}: {len(frames)} frames")
 
 
-def results_path(provider: str, model: str, results: Path = RESULTS) -> Path:
-    return results / f"{provider}__{re.sub(r'[^A-Za-z0-9._-]+', '-', model)}.jsonl"
+def results_path(provider: str, model: str, results: Path = RESULTS, variant: str | None = None,
+                 repeat: int = 1) -> Path:
+    suffix = (f"@{variant}" if variant else "") + (f".r{repeat}" if repeat > 1 else "")
+    return results / f"{provider}__{re.sub(r'[^A-Za-z0-9._-]+', '-', model)}{suffix}.jsonl"
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -86,11 +103,13 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 
 def run(provider: str, model: str, rows: list[dict], cache: Path = CACHE, results: Path = RESULTS,
-        retry_errors: bool = False, assess_with=None) -> Path:
+        retry_errors: bool = False, assess_with=None, variant: str | None = None, repeat: int = 1) -> Path:
+    """`variant` reads frames from eval/cache/<id>@<variant>; `repeat` > 1 runs
+    the same frames again into a separate file (the noise floor)."""
     if assess_with is None:
         from observatory.detect.vision import assess_with
 
-    path = results_path(provider, model, results)
+    path = results_path(provider, model, results, variant, repeat)
     path.parent.mkdir(parents=True, exist_ok=True)
     previous = _read_jsonl(path)
     done = {r["id"] for r in previous if retry_errors is False or not r.get("error")}
@@ -101,13 +120,14 @@ def run(provider: str, model: str, rows: list[dict], cache: Path = CACHE, result
     for row in rows:
         if row["id"] in done:
             continue
-        frames = load_frames(row["id"], cache)
+        key = f"{row['id']}@{variant}" if variant else row["id"]
+        frames = load_frames(key, cache)
         if not frames:
             continue
         record = {"id": row["id"], "label": row["label"], "provider": provider, "model": model,
-                  "run_at": datetime.now(timezone.utc).isoformat()}
+                  "variant": variant, "repeat": repeat, "run_at": datetime.now(timezone.utc).isoformat()}
         try:
-            result, usage = assess_with(provider, model, frames, cache / row["id"])
+            result, usage = assess_with(provider, model, frames, cache / key)
             record |= {"p": result.ai_likelihood, "findings": len(result.findings), "summary": result.summary,
                        "input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens,
                        "calls": usage.calls, "seconds": round(usage.seconds, 2), "error": None}
@@ -165,6 +185,68 @@ def _summarize(records: list[dict], heights: dict[str, int], prices: dict, regio
     return summary
 
 
+def _signed(x: float | None, fmt) -> str:
+    if x is None:
+        return "n/a"
+    return ("+" if x > 0 else "−" if x < 0 else "±") + fmt(abs(x))
+
+
+def _robustness_markdown(rob: list[dict], leak: dict) -> list[str]:
+    lines = [
+        "",
+        "## Re-compression",
+        "",
+        "Platforms re-encode every upload. Does that change the verdict? Each video is re-encoded "
+        "(`ref` is the file as downloaded) and keyframes are taken at the same instants from every version.",
+        "",
+    ]
+    if not rob:
+        lines += ["_Not run yet: `observatory bench prepare --variants all`, then `observatory bench run --variant all`._", ""]
+    else:
+        lines += [
+            "| Model | Version | SSIM vs ref | Bitrate vs ref | Real flagged as AI: ref → version | Δ [95%] | AUC Δ [95%] "
+            "| Verdicts flipped | Noise floor (ref vs ref) | Flips toward AI / real | McNemar p | Score shift, real videos |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for r in rob:
+            lines.append(
+                f"| {r['provider']} / `{r['model']}` | {r['variant']} | {_num(r['ssim'], 3)} | "
+                f"{_pct(r['bitrate_ratio'])} | {_pct(r['fpr_ref'])} → {_pct(r['fpr'])} | "
+                f"{_signed(r['fpr_delta'], _pct)}{_ci(r['fpr_delta_ci'], lambda x: _signed(x, _pct))} | "
+                f"{_signed(r['auc_delta'], _num)}{_ci(r['auc_delta_ci'], lambda x: _signed(x, _num))} | "
+                f"{_pct(r['flip_rate'])} (n={r['n']}) | {_pct(r['noise_flip_rate'])} | "
+                f"{r['toward_ai']} / {r['toward_real']} | {_num(r['mcnemar_p'], 3)} | {_signed(r['shift_real'], _num)} |"
+            )
+        lines += [
+            "",
+            "- **Verdicts flipped** only means something above the **noise floor**: the share of verdicts the same model "
+            "changes when shown the very same frames twice. Run `--variant ref --repeat 2` to measure it.",
+            "- **Δ** intervals are paired bootstraps (each video keeps its two scores together); an interval that "
+            "includes zero means no change is shown.",
+            "- **McNemar p** asks whether flips lean one way; small p (< 0.05) with more flips toward AI means "
+            "compression makes real footage look generated.",
+            "- Videos whose re-encoded frames no longer matched `ref` (SSIM below 0.5) are left out of that version.",
+            "",
+        ]
+    h, b = leak.get("height"), leak.get("bitrate")
+    if h or b:
+        lines += [
+            "### Can the label be guessed from the file alone?",
+            "",
+            "AUC of a single file property used as the score. 0.5 means it says nothing about the label; "
+            "far from 0.5 means a detector could score well by learning the file instead of the generator.",
+            "",
+            "| Property | AUC | Videos |",
+            "|---|---|---|",
+        ]
+        if h:
+            lines.append(f"| Resolution (height) | {_num(h['auc'])} | {h['n']} |")
+        if b:
+            lines.append(f"| Source bitrate | {_num(b['auc'])} | {b['n']} |")
+        lines.append("")
+    return lines
+
+
 def _pct(x: float | None) -> str:
     return "n/a" if x is None else f"{x:.0%}"
 
@@ -181,12 +263,114 @@ def _count(s: dict, k: str, n: str) -> str:
     return f" ({s[k]}/{s[n]})" if s.get(n) else ""
 
 
-def report(rows: list[dict], results: Path = RESULTS, docs: Path = DOCS, prices_file: Path = PRICES) -> list[dict]:
+def _ok(records: list[dict]) -> dict[str, dict]:
+    return {r["id"]: r for r in records if r.get("p") is not None}
+
+
+def _variant_files(results: Path) -> dict[str, dict[tuple[str, int], Path]]:
+    """{"provider__model": {(variant, repeat): path}} for every <..>@<variant>[.rN].jsonl."""
+    out: dict[str, dict[tuple[str, int], Path]] = {}
+    for p in sorted(results.glob("*@*.jsonl")):
+        base, _, tail = p.stem.partition("@")
+        m = re.fullmatch(r"(.+?)(?:\.r(\d+))?", tail)
+        out.setdefault(base, {})[(m[1], int(m[2] or 1))] = p
+    return out
+
+
+def robustness_summary(results: Path = RESULTS, cache: Path = CACHE) -> list[dict]:
+    """Compare each re-encoded version with `ref`, per model, on the videos
+    scored in both whose frames stayed aligned. The ref-vs-ref repeat gives
+    the noise floor: verdict flips the model makes with no change at all."""
+    from observatory.bench.robustness import REF, load_manifest
+
+    rows = []
+    for base, files in _variant_files(results).items():
+        if (REF, 1) not in files:
+            continue
+        ref = _ok(_read_jsonl(files[(REF, 1)]))
+        if not ref:
+            continue
+        first = next(iter(ref.values()))
+        noise = None
+        if (REF, 2) in files:
+            again = _ok(_read_jsonl(files[(REF, 2)]))
+            noise = flips({i: r["p"] for i, r in ref.items()}, {i: r["p"] for i, r in again.items()})
+        for (variant, repeat), path in sorted(files.items()):
+            if variant == REF or repeat != 1:
+                continue
+            var = _ok(_read_jsonl(path))
+            manifests = {i: load_manifest(cache, i, variant) for i in ref.keys() & var.keys()}
+            ids = sorted(i for i, m in manifests.items() if m is None or m.get("aligned", True))
+            if not ids:
+                continue
+            labels = [1 if ref[i]["label"] == "ai" else 0 for i in ids]
+            before = [min(max(float(ref[i]["p"]), 0.0), 1.0) for i in ids]
+            after = [min(max(float(var[i]["p"]), 0.0), 1.0) for i in ids]
+            fl = flips(dict(zip(ids, before)), dict(zip(ids, after)))
+            d_fpr, d_fpr_ci = paired_delta(labels, before, after, fpr_at)
+            d_auc, d_auc_ci = paired_delta(labels, before, after, auc)
+            known = [m for m in manifests.values() if m]
+            ssims = [m["ssim_mean"] for m in known if m.get("ssim_mean") is not None]
+            ratios = sorted(m["kbps"] / m["source_kbps"] for m in known if m.get("kbps") and m.get("source_kbps"))
+            rows.append({
+                "provider": first["provider"],
+                "model": first["model"],
+                "variant": variant,
+                "n": len(ids),
+                "misaligned": len(manifests) - len(ids),
+                "fpr_ref": fpr_at(labels, before),
+                "fpr": fpr_at(labels, after),
+                "fpr_delta": d_fpr,
+                "fpr_delta_ci": d_fpr_ci,
+                "auc_ref": auc(labels, before),
+                "auc": auc(labels, after),
+                "auc_delta": d_auc,
+                "auc_delta_ci": d_auc_ci,
+                "flip_rate": fl.rate,
+                "toward_ai": fl.toward_ai,
+                "toward_real": fl.toward_real,
+                "mcnemar_p": mcnemar_exact(fl.toward_ai, fl.toward_real),
+                "noise_flip_rate": noise.rate if noise else None,
+                "noise_n": noise.n if noise else None,
+                "shift_real": mean_shift(labels, before, after, 0),
+                "shift_ai": mean_shift(labels, before, after, 1),
+                "ssim": round(sum(ssims) / len(ssims), 4) if ssims else None,
+                "bitrate_ratio": round(ratios[len(ratios) // 2], 3) if ratios else None,
+            })
+    return rows
+
+
+def leakage(rows: list[dict], cache: Path = CACHE) -> dict:
+    """Can the label be guessed without looking at the content? AUC of
+    resolution alone (dataset.csv) and of source bitrate alone (ref manifests).
+    Near 0.5 is good; far from it means a detector can score well by learning
+    the file, not the generator."""
+    from observatory.bench.robustness import REF, load_manifest
+
+    def side(key):
+        pairs = [(1 if r["label"] == "ai" else 0, v) for r in rows if (v := key(r)) is not None]
+        if len({y for y, _ in pairs}) < 2:
+            return None
+        return {"auc": round(auc([y for y, _ in pairs], [v for _, v in pairs]), 3), "n": len(pairs)}
+
+    def kbps(r):
+        m = load_manifest(cache, r["id"], REF)
+        return m.get("source_kbps") if m else None
+
+    return {
+        "height": side(lambda r: float(r["height"]) if r.get("height") else None),
+        "bitrate": side(kbps),
+    }
+
+
+def report(rows: list[dict], results: Path = RESULTS, docs: Path = DOCS, prices_file: Path = PRICES,
+           cache: Path = CACHE) -> list[dict]:
     heights = {r["id"]: int(float(r["height"] or 0)) for r in rows}
     regions = {r["id"]: r.get("region") or "global" for r in rows}
     prices = json.loads(prices_file.read_text(encoding="utf-8")) if prices_file.exists() else {}
     prices = {k: v for k, v in prices.items() if not k.startswith("_")}
-    summaries = [_summarize(recs, heights, prices, regions) for p in sorted(results.glob("*.jsonl")) if (recs := _read_jsonl(p))]
+    main_files = [p for p in sorted(results.glob("*.jsonl")) if "@" not in p.name]
+    summaries = [_summarize(recs, heights, prices, regions) for p in main_files if (recs := _read_jsonl(p))]
     summaries.sort(key=lambda s: -((s["scores"] or {}).get("auc") or 0))
 
     n_ai = sum(r["label"] == "ai" for r in rows)
@@ -196,6 +380,8 @@ def report(rows: list[dict], results: Path = RESULTS, docs: Path = DOCS, prices_
         "dataset": {"videos": len(rows), "ai": n_ai, "real": len(rows) - n_ai, "br": n_br},
         "thresholds": {"likely_ai": AI_THRESHOLD, "likely_human": HUMAN_THRESHOLD},
         "models": summaries,
+        "robustness": robustness_summary(results, cache),
+        "leakage": leakage(rows, cache),
     }
     docs.mkdir(parents=True, exist_ok=True)
     (docs / "benchmarks.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -257,6 +443,7 @@ def _markdown(payload: dict) -> str:
             f"| {m['provider']} / `{m['model']}` | {_pct(br.get('false_positive_rate'))} | {_num(br.get('auc'))} | "
             f"{_pct(gl.get('false_positive_rate'))} | {_num(gl.get('auc'))} |"
         )
+    lines += _robustness_markdown(payload.get("robustness") or [], payload.get("leakage") or {})
     t = payload["thresholds"]
     lines += [
         "",

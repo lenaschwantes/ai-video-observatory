@@ -87,10 +87,33 @@ def cmd_bench(args: argparse.Namespace) -> int:
     rows = runner.load_dataset()
     if args.limit:
         rows = rows[: args.limit]
+    from observatory.bench.robustness import REF, VARIANTS
+
     if args.step == "prepare":
-        runner.prepare(rows, pause=args.pause)
+        if args.variants:
+            from observatory.bench.robustness import prepare_variants
+
+            names = list(VARIANTS) if args.variants == "all" else [v.strip() for v in args.variants.split(",")]
+            unknown = [v for v in names if v not in VARIANTS]
+            if unknown:
+                print(f"unknown variant(s): {', '.join(unknown)}; choose from {', '.join(VARIANTS)}", file=sys.stderr)
+                return 2
+            runner.prepare(rows, pause=args.pause)  # instants come from the normal frames
+            prepare_variants(rows, runner.CACHE, names, pause=args.pause)
+        else:
+            runner.prepare(rows, pause=args.pause)
     elif args.step == "run":
         from observatory.bench import detectors
+
+        if args.variant == "all":  # ref twice (noise floor), then every re-encode
+            plan = [(REF, 1), (REF, 2), *[(v, 1) for v in VARIANTS if v != REF]]
+        elif args.variant:
+            if args.variant not in VARIANTS:
+                print(f"unknown variant {args.variant}; choose from {', '.join(VARIANTS)} or all", file=sys.stderr)
+                return 2
+            plan = [(args.variant, args.repeat)]
+        else:
+            plan = [(None, 1)]
 
         names = [*PROVIDERS, *detectors.DETECTORS] if args.provider == "all" else [args.provider]
         for name in names:
@@ -99,21 +122,27 @@ def cmd_bench(args: argparse.Namespace) -> int:
                     print(f"[skip] {name}: needs {' and '.join(detectors.DETECTORS[name])}")
                     continue
                 model = {"sightengine": "genai", "hive": "ai-generated-image-detection"}[name]
-                print(f"== {name} / {model}")
-                runner.run(name, model, rows, retry_errors=args.retry_errors, assess_with=detectors.assess_with)
+                for variant, repeat in plan:
+                    print(f"== {name} / {model}" + (f" @ {variant}" if variant else "") + (f" (run {repeat})" if repeat > 1 else ""))
+                    runner.run(name, model, rows, retry_errors=args.retry_errors, assess_with=detectors.assess_with,
+                               variant=variant, repeat=repeat)
                 continue
             model = args.model or model_for(name)
             if not has_key(name) or not model:
                 print(f"[skip] {name}: needs {' or '.join(PROVIDERS[name].key_env)}"
                       + ("" if model else f" and {PROVIDERS[name].model_env}"))
                 continue
-            print(f"== {name} / {model}")
-            runner.run(name, model, rows, retry_errors=args.retry_errors)
+            for variant, repeat in plan:
+                print(f"== {name} / {model}" + (f" @ {variant}" if variant else "") + (f" (run {repeat})" if repeat > 1 else ""))
+                runner.run(name, model, rows, retry_errors=args.retry_errors, variant=variant, repeat=repeat)
     else:
         for m in runner.report(rows):
             s = m["scores"] or {}
             print(f"{m['provider']}/{m['model']}: AUC={s.get('auc')} FPR={s.get('false_positive_rate')} "
                   f"recall={s.get('recall_ai')} failures={m['failures']}/{m['attempted']}")
+        for r in runner.robustness_summary():
+            print(f"{r['provider']}/{r['model']} @ {r['variant']}: flips={r['flip_rate']} (noise {r['noise_flip_rate']}) "
+                  f"FPR {r['fpr_ref']} -> {r['fpr']}")
         print("wrote docs/benchmarks.md and docs/benchmarks.json")
     return 0
 
@@ -156,6 +185,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, help="only the first N dataset rows (smoke test)")
     p.add_argument("--retry-errors", action="store_true", help="re-run rows that failed before")
     p.add_argument("--pause", type=float, default=20.0, help="prepare: seconds between downloads")
+    p.add_argument("--variants", help="prepare: re-encoded versions to build (comma list, or all)")
+    p.add_argument("--variant", help="run: score a re-encoded version (ref, crf28, 720p-crf35, or all)")
+    p.add_argument("--repeat", type=int, default=1, help="run: run number, for the noise floor (ref twice)")
     p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("serve", help="run the web front end")

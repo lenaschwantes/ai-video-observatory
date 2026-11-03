@@ -62,7 +62,33 @@ Supported:
 - **Vision models**: Groq, Anthropic, OpenAI and Gemini. OpenAI and Gemini need the model name in `OPENAI_VISION_MODEL` / `GEMINI_VISION_MODEL`.
 - **Commercial detectors**: Sightengine (`SIGHTENGINE_API_USER`, `SIGHTENGINE_API_SECRET`, free tier) and Hive, through NVIDIA's hosted endpoint (`NVIDIA_API_KEY`). Detectors score each keyframe and the video score is their mean in log-odds.
 
-The dataset has a Brazilian subset (`region=br`): AI clips by Brazilian creators (fake TV reports, church sketches, ads) paired with real local news, church services and vlogs, to test whether detectors do worse on content they were not built around. Runs resume after interruptions; `--retry-errors` re-runs failed rows.
+The dataset has a Brazilian subset (`region=br`): AI clips by Brazilian creators (fake TV reports, church sketches, ads) paired with real local news, church services and vlogs, to test whether detectors do worse on content they were not built around. Runs resume after interruptions; `--retry-errors` re-runs failed rows. Every rate comes with a 95% interval (Wilson for rates, a seeded bootstrap for AUC): with a set this small, overlapping intervals mean two models are not shown to differ.
+
+### Robustness to re-compression
+
+Platforms re-encode every upload, and vendors never say what that does to their detectors. The benchmark re-encodes each video and scores every version on frames taken at the **same instants** (ffmpeg exact seek), so compression is the only difference:
+
+| Version | ffmpeg | Stands for |
+|---|---|---|
+| `ref` | none | the file as downloaded (already platform-compressed) |
+| `crf28` | H.264, CRF 28 | one more pass, like a repost |
+| `720p-crf35` | short side ≤ 720, H.264, CRF 35 | a clip forwarded a few times |
+
+```bash
+observatory bench prepare --variants all                 # needs the normal prepare; downloads again
+observatory bench run --provider groq --variant all      # ref twice (noise floor), then each version
+observatory bench report
+```
+
+What makes the numbers hold up:
+
+- **Noise floor.** `ref` is scored twice; the share of verdicts the model changes on identical frames is the bar a re-compression effect has to clear.
+- **Paired statistics.** Changes are paired bootstraps over videos, and a two-sided exact McNemar test says whether flips lean toward "AI" or toward "real".
+- **Alignment check.** Every frame's SSIM and PSNR against `ref` are stored; a video whose frames stop matching (SSIM < 0.5) is dropped from that version instead of compared on different pictures.
+- **Traceability.** Each version writes a `manifest.json`: ffmpeg version, exact arguments, source and output bitrate, and the SHA-256 of every frame. Encoding uses a fixed thread count, so the same input gives the same bytes.
+- **Leakage check.** The report shows how well resolution or bitrate *alone* predict the label. If they do, a detector can look good by learning the file rather than the generator.
+
+ffmpeg comes from the system, or from the `imageio-ffmpeg` wheel in the `bench` extra (handy on Windows; it bundles a GPL ffmpeg binary). The variant levels follow the light/heavy compression split used by [SynthForensics](https://deepfake-demo.aisec.fraunhofer.de/related_work/2602.04939), so the numbers can be read against an external benchmark. Scoring all versions is about 3× the calls of a normal run (≈ $12–18 for 40 videos on Claude Opus; free tier on Groq); start with `--limit 10`.
 
 ## Deploy
 
@@ -129,6 +155,8 @@ Only public videos are analyzed, on request, one at a time. Nothing is redistrib
 ## Author
 
 Made by **Helena Schwantes**: [LinkedIn](https://www.linkedin.com/in/helenags) · [GitHub](https://github.com/lenaschwantes).
+
+Running the public demo costs API credits. If it helped you, you can [sponsor it](https://github.com/sponsors/lenaschwantes).
 
 ## License
 

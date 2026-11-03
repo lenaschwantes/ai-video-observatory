@@ -184,3 +184,20 @@ def test_upload_rejects_other_file_types(client):
 def test_no_link_and_no_file_is_rejected(client):
     resp = client.post("/analyze", data={"url": ""}, headers={"HX-Request": "true"})
     assert 'class="error"' in resp.text
+
+
+def test_benchmarks_page_shows_recompression_table(client, tmp_path, monkeypatch):
+    from observatory.bench.metrics import score
+
+    s = score([1, 1, 0, 0], [0.9, 0.8, 0.1, 0.2]).as_dict()
+    rob = {"provider": "groq", "model": "m", "variant": "720p-crf35", "n": 4, "ssim": 0.91, "bitrate_ratio": 0.38,
+           "fpr_ref": 0.0, "fpr": 0.5, "fpr_delta_ci": [0.0, 1.0], "flip_rate": 0.25, "noise_flip_rate": 0.0,
+           "toward_ai": 1, "toward_real": 0, "mcnemar_p": 1.0}
+    path = tmp_path / "bench.json"
+    path.write_text(json.dumps({"models": [{"provider": "groq", "model": "m", "scores": s, "attempted": 4, "failures": 0}],
+                                "robustness": [rob], "leakage": {"height": {"auc": 0.81, "n": 4}}}))
+    monkeypatch.setattr(web, "BENCHMARKS_FILE", path)
+    page = client.get("/benchmarks?lang=pt").text
+    assert "E depois que a plataforma recomprime?" in page
+    assert "720p-crf35" in page and "SSIM 0.91" in page and "0% → 50%" in page
+    assert "AUC 0.81" in page
