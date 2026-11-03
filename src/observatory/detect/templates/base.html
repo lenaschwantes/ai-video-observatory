@@ -152,6 +152,7 @@
       <a href="/benchmarks" {% if path == '/benchmarks' %}aria-current="page"{% endif %}>{{ t('nav_ranking') }}</a>
       <a class="opt2" href="/#analisar">{{ t('nav_analyze') }}</a>
       <a class="opt" href="/metodo" {% if path in ('/metodo', '/method') %}aria-current="page"{% endif %}>{{ t('nav_method') }}</a>
+      <a class="opt" href="/docs/projeto" {% if path.startswith('/docs') %}aria-current="page"{% endif %}>{{ 'Docs' }}</a>
       <span class="toggles">
         <a class="chip {% if lang == 'pt' %}on{% endif %}" href="?lang=pt" hreflang="pt-BR">PT</a>
         <a class="chip {% if lang == 'en' %}on{% endif %}" href="?lang=en" hreflang="en">EN</a>

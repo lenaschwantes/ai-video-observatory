@@ -9,6 +9,8 @@ Commercial detectors advertise 98%+ accuracy, but the numbers come from the vend
 
 > Status: **working, early.** The labelled set is small and the analyzer's weights are not yet fitted to it; see the roadmap. Treat results as a triage aid, never as proof.
 
+The website (Portuguese by default, English with `?lang=en`) has the ranking, the analyzer, the method and this documentation at `/docs`, read straight from the files in this repository. A static copy without the analyzer is published on GitHub Pages (see [Documentation site](#documentation-site)).
+
 ## What it checks
 
 | Signal | How | Strength |
@@ -16,9 +18,9 @@ Commercial detectors advertise 98%+ accuracy, but the numbers come from the vend
 | **Platform AI label** | YouTube's `containsSyntheticMedia` declaration via the Data API | Strong when present, often absent |
 | **Content credentials** | C2PA manifest in the file (`c2pa-python`): AI vs camera digital source type | Very strong, usually stripped on re-encode |
 | **Caption and tags** | Explicit statements ("made with AI", `#aigenerated`) and generator names | Weak to medium, cheap |
-| **Visual analysis** | Keyframes (one per scene, PySceneDetect) inspected by a multimodal model that must cite frame-level evidence. Runs on Groq (open-weight vision model, free tier; frames sent in batches of 3) or Claude | Medium, explains itself |
+| **Visual analysis** | Keyframes (one per scene, PySceneDetect) inspected by a multimodal model that must cite frame-level evidence, written in the reader's language. Runs on Groq (open-weight, free tier; frames in batches of 3), Claude, GPT or Gemini, on the host's key or the visitor's own | Medium, explains itself |
 
-Each signal contributes a log-likelihood ratio. They are summed into a probability, and the verdict is *likely AI* above 75%, *likely not AI* below 25%, and *inconclusive* in between or when nothing informative was found.
+Each signal contributes a log-likelihood ratio. The score is `sigmoid(bias + Σ weight × llr)`, with versioned weights (`weights/`; v0 is the hand-set start, every weight 1), and the verdict is *likely AI* at 75% or more, *likely not AI* at 25% or less, and *inconclusive* in between or when nothing informative was found. Each report records the weights version that produced it.
 
 Example output:
 
@@ -103,6 +105,34 @@ What makes the numbers hold up:
 
 ffmpeg comes from the system, or from the `imageio-ffmpeg` wheel in the `bench` extra (handy on Windows; it bundles a GPL ffmpeg binary). The variant levels follow the light/heavy compression split used by [SynthForensics](https://deepfake-demo.aisec.fraunhofer.de/related_work/2602.04939), so the numbers can be read against an external benchmark. Scoring all versions is about 3× the calls of a normal run (≈ $12–18 for 40 videos on Claude Opus; free tier on Groq); start with `--limit 10`.
 
+## The website
+
+| Page | What it shows |
+|---|---|
+| `/` | The question, the headline number with its counts ("9 of 33 real videos"), the interactive ranking and the analyzer |
+| `/benchmarks` | Ranking with three views (real videos accused, AUC, Brazil vs global), the full table with 95% intervals and the re-compression table |
+| `/report/<id>` | Probability bar with the three zones, a timeline of the clues, zoomable evidence frames and every signal |
+| `/metodo` | How the test works, in plain language |
+| `/docs` | This documentation and the benchmark report, rendered from the repository's Markdown |
+| `/api/report/<id>`, `/api/benchmarks` | The same data as JSON (`/api/docs` lists the API) |
+
+Built with server-rendered templates, d3 for the charts, htmx for live analysis progress and bigger-picture for the evidence lightbox. It works without JavaScript (the charts fall back to tables), is keyboard and screen-reader accessible, has light and dark themes, and shares well: each page has Open Graph previews in both languages.
+
+## Learning from use
+
+The analyzer is designed to improve from the cases people test, without letting anyone teach it to accuse real videos:
+
+1. **Votes are hints.** A report can be marked "AI / real / not sure", optionally with a source. Voters are stored as a salted hash, one vote per report (`src/observatory/learn/feedback.py`).
+2. **Only curated labels train.** Votes rank a curation queue (uncertain and disputed cases first: active learning); a label needs a source, such as the creator's own statement or an upload date before 2022.
+3. **Champion / challenger.** Refitted weights replace the current ones only if they do not accuse more real videos on the fixed benchmark. Every attempt, adopted or not, is kept in `weights/history.jsonl`.
+4. **The benchmark stays an exam.** Cases used for training never enter the test set; new test sets are cut by date as versioned releases.
+
+Status: versioned weights and the vote/label store are in place; the refit, the vote button and the public version history are next.
+
+## Documentation site
+
+The site's `/docs` pages render `README.md` and `docs/benchmarks.md` from the repository (raw HTML in the Markdown is not rendered), so documentation never needs a trip to GitHub. `scripts/export_static.py` writes a static copy of the ranking, method and documentation pages to `site/`, and `.github/workflows/pages.yml` publishes it to GitHub Pages on every push to `main`. The static copy has no analyzer: that needs a server (run locally, or the Docker image).
+
 ## Deploy
 
 The `Dockerfile` runs the web UI on port 7860 and works unchanged on Hugging Face Spaces (Docker SDK), Render or Fly. Set `GROQ_API_KEY` (or `ANTHROPIC_API_KEY`) as a secret. Every public analysis costs a model call, so live analysis is rate limited (`LIVE_LIMIT_PER_IP`, `LIVE_LIMIT_PER_DAY`) and can be switched off with `ALLOW_LIVE=0`, in which case the site serves the reports in `examples/reports/`.
@@ -125,6 +155,9 @@ Downloads from cloud servers are sometimes blocked by the platforms. When that h
 | **The model's confidence is shrunk** | Its log-odds are multiplied by 0.8, so an uncalibrated judge cannot dominate the stronger signals. |
 | **Videos are deleted after analysis** | Only the report and the frames cited as evidence are kept. |
 | **Reports are cached by video** | Re-analyzing the same link costs nothing and returns the same answer. |
+| **Uploads stay private** | Reports of uploaded files are never listed and are not indexed; uploads are off in the public image. |
+| **Visitor keys never persist** | A key pasted in the form lives in memory for one analysis and is scrubbed from errors. |
+| **Weights are versioned** | Every report says which weights produced it, and a new version must not accuse more real videos. |
 
 ## Also in this repository: the trend pipeline
 
@@ -146,6 +179,10 @@ Live TikTok collection through the unofficial client is currently blocked by bot
 ## Roadmap
 
 - [x] **v0, analyzer**: four signals, combination with an inconclusive band, CLI, web UI, Docker.
+- [x] **Open benchmark**: commercial detectors and vision models on the same frames, Brazilian subset, 95% intervals, recall with no real video accused.
+- [x] **Robustness to re-compression**: noise floor, paired bootstrap, McNemar, alignment check, leakage check.
+- [x] **Website**: Portuguese/English, accessible charts, live progress, visitor keys, private uploads, docs inside the site.
+- [ ] **Learning from use**: refit with champion/challenger, vote button, public version history (groundwork done).
 - [ ] **v1, trustworthy**: hand-labelled evaluation set (Label Studio) plus a public benchmark (GenVidBench); fit the signal weights; calibration curve; publish accuracy and where it fails.
 - [ ] **v1, honest uncertainty**: conformal prediction (MAPIE) so "inconclusive" comes with a guaranteed error rate.
 - [ ] **v2, robustness**: run the evaluation set through public watermark and metadata removers and report how much accuracy drops; add a specialised detector model (e.g. Veritas) as a fifth signal.
@@ -154,8 +191,11 @@ Live TikTok collection through the unofficial client is currently blocked by bot
 ## Project layout
 
 ```
-src/observatory/detect/   analyzer: fetch, frames, signals, vision, pipeline, web
+src/observatory/detect/   analyzer: fetch, frames, signals, vision, pipeline, web, docs, i18n
+src/observatory/bench/    benchmark: runner, metrics, robustness, commercial detectors
+src/observatory/learn/    learning from use: versioned weights, votes and curated labels
 src/observatory/          trend pipeline: sources, ingest, trends, cli
+eval/                     labelled dataset, prices; keyframe cache (not committed)
 transform/                dbt project
 tests/                    pytest (no network, no API calls)
 Dockerfile                web deployment

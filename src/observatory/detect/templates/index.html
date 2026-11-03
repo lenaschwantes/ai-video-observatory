@@ -108,7 +108,9 @@
       <div id="analyze-status"></div>
       {% if allow_live %}<p class="muted" style="font-size:.85rem; margin-top:8px">{{ t('limit_note', limit=limit) }}</p>{% endif %}
       {% else %}
-      <div class="error" style="border-left-color:var(--axis); background:var(--surface)">{{ t('live_off') }}</div>
+      <div class="error" style="border-left-color:var(--axis); background:var(--surface)">
+        {% if static_site %}{{ t('static_note') }} <a href="/docs/projeto#run-it">{{ t('static_note_link') }}</a>{% else %}{{ t('live_off') }}{% endif %}
+      </div>
       {% endif %}
       {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
     </div>

@@ -91,7 +91,7 @@
       <li>{{ t('caveat_ci') }}</li>
       {% if b.leakage and b.leakage.height %}<li>{{ t('caveat_leak', auc=num(b.leakage.height.auc)) }}</li>{% endif %}
     </ul>
-    <p><a href="/metodo">{{ t('method_title') }} →</a> · <a href="{{ repo_url }}/blob/main/docs/benchmarks.md">{{ t('full_report') }}</a></p>
+    <p><a href="/metodo">{{ t('method_title') }} →</a> · <a href="/docs/benchmarks">{{ t('full_report') }}</a></p>
     {% endif %}
   </section>
 </div>

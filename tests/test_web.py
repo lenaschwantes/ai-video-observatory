@@ -253,3 +253,31 @@ def test_home_survives_a_benchmark_file_from_an_older_version(client, tmp_path, 
                                              "scores": {"false_positive_rate": 0.5, "auc": 0.7, "n_real": 2}}]}))
     monkeypatch.setattr(web, "BENCHMARKS_FILE", bench)
     assert client.get("/").status_code == 200
+
+
+def test_docs_render_the_readme_inside_the_site(client):
+    page = client.get("/docs/projeto?lang=en")
+    assert page.status_code == 200
+    assert 'id="run-it"' in page.text and "nav" in page.text and 'class="toc"' in page.text
+    assert 'href="/docs/benchmarks"' in page.text  # repo link to docs/benchmarks.md stays on the site
+    assert client.get("/docs", follow_redirects=False).headers["location"] == "/docs/projeto"
+    assert client.get("/docs/../../.env").status_code == 404
+    assert client.get("/docs/secrets").status_code == 404
+
+
+def test_docs_never_render_raw_html(tmp_path, monkeypatch):
+    from observatory.detect import docs
+
+    (tmp_path / "README.md").write_text("# T\n\n<script>alert(1)</script>\n\n[x](eval/dataset.csv)")
+    monkeypatch.setattr(docs, "ROOT", tmp_path)
+    html, _ = docs.render(docs.PAGES["projeto"])
+    assert "<script>" not in html
+    assert 'href="https://github.com/lenaschwantes/ai-video-observatory/blob/main/eval/dataset.csv"' in html
+
+
+def test_missing_benchmark_report_shows_a_note(client, tmp_path, monkeypatch):
+    from observatory.detect import docs
+
+    monkeypatch.setattr(docs, "ROOT", tmp_path)
+    page = client.get("/docs/benchmarks?lang=pt").text
+    assert "ainda não existe" in page
