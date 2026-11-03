@@ -87,15 +87,25 @@ def test_kaggle_notebook_report_cell_renders_a_report(tmp_path):
                         evidence=[Evidence(text="hand <merges>", direction="ai", timestamp=1.0, frame="f.jpg")])],
         frames=[Frame(index=0, timestamp=1.0, file="f.jpg")], method_version="v0",
     )
-    shown = []
-    ns = {"report": report, "REPORTS": tmp_path}
-    import IPython.display as disp
+    # The notebook runs in Jupyter; here a stand-in IPython.display captures what it shows.
+    import sys
+    import types
 
-    orig = disp.display
-    disp.display = lambda obj: shown.append(obj.data)
+    shown = []
+    fake = types.ModuleType("IPython.display")
+    fake.HTML = lambda data: data
+    fake.display = shown.append
+    ipython = types.ModuleType("IPython")
+    ipython.display = fake
+    saved = {k: sys.modules.get(k) for k in ("IPython", "IPython.display")}
+    sys.modules.update({"IPython": ipython, "IPython.display": fake})
     try:
-        exec(cell, ns)
+        exec(cell, {"report": report, "REPORTS": tmp_path})
     finally:
-        disp.display = orig
+        for k, v in saved.items():
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
     html = shown[0]
     assert "90%" in html and "&lt;merges&gt;" in html and "&lt;b&gt;t&lt;/b&gt;" in html  # escaped
