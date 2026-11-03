@@ -3,7 +3,7 @@ import json
 import pytest
 
 from observatory.bench import runner
-from observatory.bench.metrics import auc, ece, score
+from observatory.bench.metrics import auc, auc_ci, ece, recall_at_zero_fpr, score, wilson
 from observatory.detect.models import Frame
 from observatory.detect.vision import Usage, VisualAssessment
 
@@ -25,6 +25,33 @@ def test_score_counts_false_positives_on_real_videos_only():
     assert s.false_positive_rate == 0.5
     assert s.inconclusive_rate == 0.25
     assert s.accuracy_when_decided == pytest.approx(2 / 3)
+
+
+def test_wilson_is_honest_at_zero_and_matches_known_value():
+    lo, hi = wilson(0, 20)
+    assert lo == 0.0 and 0.15 < hi < 0.17  # "0 of 20" still allows ~16%
+    lo, hi = wilson(5, 10)
+    assert lo == pytest.approx(0.2366, abs=1e-3) and hi == pytest.approx(0.7634, abs=1e-3)
+    assert wilson(0, 0) is None
+
+
+def test_auc_ci_is_seeded_and_brackets_the_point_estimate():
+    labels = [1] * 6 + [0] * 6
+    probs = [0.9, 0.8, 0.7, 0.6, 0.4, 0.3, 0.5, 0.35, 0.2, 0.2, 0.1, 0.05]
+    ci = auc_ci(labels, probs)
+    assert ci == auc_ci(labels, probs)  # deterministic
+    assert ci[0] <= auc(labels, probs) <= ci[1] and ci[1] - ci[0] > 0.05
+    assert auc_ci([1, 1], [0.9, 0.8]) is None
+
+
+def test_recall_at_zero_fpr_uses_highest_real_score():
+    assert recall_at_zero_fpr([1, 1, 1, 0, 0], [0.95, 0.7, 0.4, 0.6, 0.1]) == pytest.approx(2 / 3)
+
+
+def test_score_reports_counts_and_intervals():
+    s = score([1, 1, 0, 0], [0.9, 0.5, 0.8, 0.1])
+    assert (s.n_ai, s.n_real, s.false_positives) == (2, 2, 1)
+    assert s.false_positive_rate_ci[0] < 0.5 < s.false_positive_rate_ci[1]
 
 
 def _cache(tmp_path, vid):
