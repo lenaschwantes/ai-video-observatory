@@ -84,7 +84,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
     if args.limit:
         rows = rows[: args.limit]
     if args.step == "prepare":
-        runner.prepare(rows)
+        runner.prepare(rows, pause=args.pause)
     elif args.step == "run":
         from observatory.bench import detectors
 
@@ -151,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--model", help="override the provider's model")
     p.add_argument("--limit", type=int, help="only the first N dataset rows (smoke test)")
     p.add_argument("--retry-errors", action="store_true", help="re-run rows that failed before")
+    p.add_argument("--pause", type=float, default=20.0, help="prepare: seconds between downloads")
     p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("serve", help="run the web front end")

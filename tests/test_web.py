@@ -100,3 +100,61 @@ def test_htmx_job_reports_progress_then_redirects(client, tmp_path, monkeypatch)
             break
         time.sleep(0.02)
     assert done.headers["HX-Redirect"] == "/report/youtube-x"
+
+
+def _run_job(client, data):
+    resp = client.post("/analyze", data=data, headers={"HX-Request": "true"})
+    if 'hx-get="/jobs/' not in resp.text:
+        return resp, resp  # fast job: the first response is already final
+    job_id = resp.text.split('hx-get="/jobs/')[1].split('"')[0]
+    for _ in range(100):
+        r = client.get(f"/jobs/{job_id}")
+        if r.headers.get("HX-Redirect") or "stage_error" in r.text or 'class="error"' in r.text:
+            return resp, r
+        time.sleep(0.02)
+    return resp, r
+
+
+SECRET = "gsk_test_visitor_key_1234567890"
+
+
+def test_visitor_key_reaches_the_provider_and_is_never_echoed(client, tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_analyze(url, reports_dir, progress, assessor=None):
+        try:
+            assessor([], tmp_path)
+        except RuntimeError as exc:
+            raise RuntimeError(f"provider rejected key {SECRET}: {exc}")
+
+    def fake_assess_with(provider, model, frames, frame_dir, api_key=None):
+        seen.update(provider=provider, model=model, key=api_key)
+        raise RuntimeError("401")
+
+    monkeypatch.setattr(web, "analyze", fake_analyze)
+    monkeypatch.setattr(web, "assess_with", fake_assess_with)
+    _, status = _run_job(client, {"url": "https://www.youtube.com/watch?v=x", "key_provider": "groq",
+                                  "key_model": "", "api_key": SECRET})
+    assert seen == {"provider": "groq", "model": "qwen/qwen3.8-27b", "key": SECRET}
+    assert SECRET not in status.text and "***" in status.text
+    assert all(SECRET not in str(job) for job in web._jobs.values())
+
+
+def test_visitor_key_allows_analysis_when_live_is_off(client, monkeypatch, tmp_path):
+    report = _report(tmp_path)
+    monkeypatch.setattr(web, "ALLOW_LIVE", False)
+    monkeypatch.setattr(web, "analyze", lambda url, reports_dir, progress, assessor=None: report)
+    blocked = client.post("/analyze", data={"url": "https://www.youtube.com/watch?v=x"}, headers={"HX-Request": "true"})
+    assert 'class="error"' in blocked.text
+    _, done = _run_job(client, {"url": "https://www.youtube.com/watch?v=x", "key_provider": "groq", "api_key": SECRET})
+    assert done.headers["HX-Redirect"] == "/report/youtube-x"
+
+
+@pytest.mark.parametrize("data", [
+    {"key_provider": "nope", "api_key": SECRET},
+    {"key_provider": "groq", "api_key": "short"},
+    {"key_provider": "openai", "api_key": SECRET},  # OpenAI has no default model
+])
+def test_invalid_visitor_key_input_is_rejected(client, data):
+    resp = client.post("/analyze", data={"url": "https://www.youtube.com/watch?v=x", **data}, headers={"HX-Request": "true"})
+    assert 'class="error"' in resp.text and SECRET not in resp.text

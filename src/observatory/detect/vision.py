@@ -123,7 +123,7 @@ def _parse(raw: str) -> VisualAssessment:
         raise RuntimeError(f"model returned JSON outside the contract: {exc.errors()[:2]}") from exc
 
 
-def _call_anthropic(model: str, frames: list[Frame], frame_dir: Path) -> tuple[VisualAssessment, Usage]:
+def _call_anthropic(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
     import anthropic
 
     content: list[dict] = []
@@ -131,7 +131,7 @@ def _call_anthropic(model: str, frames: list[Frame], frame_dir: Path) -> tuple[V
         content.append({"type": "text", "text": f"Frame {f.index} at {f.timestamp:.1f}s"})
         content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": _b64(frame_dir / f.file)}})
     content.append({"type": "text", "text": PROMPT.format(n=len(frames))})
-    response = anthropic.Anthropic().beta.messages.parse(
+    response = anthropic.Anthropic(api_key=api_key).beta.messages.parse(
         model=model,
         max_tokens=16000,
         output_config={"effort": "high"},
@@ -154,10 +154,10 @@ def _openai_style_content(frames: list[Frame], frame_dir: Path) -> list[dict]:
     return content
 
 
-def _call_groq(model: str, frames: list[Frame], frame_dir: Path) -> tuple[VisualAssessment, Usage]:
+def _call_groq(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
     from groq import Groq
 
-    completion = Groq(max_retries=5).chat.completions.create(
+    completion = Groq(api_key=api_key, max_retries=5).chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir)}],
         response_format={"type": "json_object"},
@@ -166,10 +166,10 @@ def _call_groq(model: str, frames: list[Frame], frame_dir: Path) -> tuple[Visual
     return _parse(completion.choices[0].message.content or ""), Usage(u.prompt_tokens, u.completion_tokens, 1)
 
 
-def _call_openai(model: str, frames: list[Frame], frame_dir: Path) -> tuple[VisualAssessment, Usage]:
+def _call_openai(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
     from openai import OpenAI
 
-    completion = OpenAI(max_retries=5).chat.completions.create(
+    completion = OpenAI(api_key=api_key, max_retries=5).chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir)}],
         response_format={"type": "json_object"},
@@ -178,7 +178,7 @@ def _call_openai(model: str, frames: list[Frame], frame_dir: Path) -> tuple[Visu
     return _parse(completion.choices[0].message.content or ""), Usage(u.prompt_tokens, u.completion_tokens, 1)
 
 
-def _call_gemini(model: str, frames: list[Frame], frame_dir: Path) -> tuple[VisualAssessment, Usage]:
+def _call_gemini(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
     from google import genai
     from google.genai import types
 
@@ -187,7 +187,7 @@ def _call_gemini(model: str, frames: list[Frame], frame_dir: Path) -> tuple[Visu
         parts.append(f"Frame {f.index} at {f.timestamp:.1f}s")
         parts.append(types.Part.from_bytes(data=(frame_dir / f.file).read_bytes(), mime_type="image/jpeg"))
     parts.append(PROMPT.format(n=len(frames)) + JSON_INSTRUCTIONS)
-    response = genai.Client().models.generate_content(
+    response = genai.Client(api_key=api_key).models.generate_content(
         model=model,
         contents=parts,
         config=types.GenerateContentConfig(response_mime_type="application/json"),
@@ -196,7 +196,7 @@ def _call_gemini(model: str, frames: list[Frame], frame_dir: Path) -> tuple[Visu
     return _parse(response.text or ""), Usage(meta.prompt_token_count or 0, meta.candidates_token_count or 0, 1)
 
 
-CALLERS: dict[str, Callable[[str, list[Frame], Path], tuple[VisualAssessment, Usage]]] = {
+CALLERS: dict[str, Callable[..., tuple[VisualAssessment, Usage]]] = {
     "groq": _call_groq,
     "anthropic": _call_anthropic,
     "openai": _call_openai,
@@ -215,15 +215,17 @@ def merge(results: list[VisualAssessment]) -> VisualAssessment:
     )
 
 
-def assess_with(name: str, model: str, frames: list[Frame], frame_dir: Path) -> tuple[VisualAssessment, Usage]:
-    """Run one provider on the frames, batching when it caps images per request."""
+def assess_with(name: str, model: str, frames: list[Frame], frame_dir: Path,
+                api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
+    """Run one provider on the frames, batching when it caps images per request.
+    `api_key` overrides the environment for this call only (a visitor's own key)."""
     call = CALLERS[name]
     limit = PROVIDERS[name].max_images or len(frames)
     batches = [frames[i : i + limit] for i in range(0, len(frames), limit)]
     usage, results = Usage(), []
     for batch in batches:
         start = time.perf_counter()
-        result, u = call(model, batch, frame_dir)
+        result, u = call(model, batch, frame_dir, api_key=api_key)
         u.seconds = time.perf_counter() - start
         usage.add(u)
         results.append(result)

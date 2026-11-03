@@ -27,6 +27,7 @@ from observatory.detect import i18n
 from observatory.detect.fetch import FetchError, check_url
 from observatory.detect.models import Report
 from observatory.detect.pipeline import AI_THRESHOLD, HUMAN_THRESHOLD, analyze, load_report
+from observatory.detect.vision import PROVIDERS, assess_with
 
 ROOT = Path(__file__).resolve().parents[3]
 REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", "data/reports"))
@@ -36,6 +37,8 @@ DATASET_FILE = Path(os.environ.get("DATASET_FILE", ROOT / "eval" / "dataset.csv"
 ALLOW_LIVE = os.environ.get("ALLOW_LIVE", "1") != "0"
 PER_IP_DAILY = int(os.environ.get("LIVE_LIMIT_PER_IP", "3"))
 GLOBAL_DAILY = int(os.environ.get("LIVE_LIMIT_PER_DAY", "30"))
+ALLOW_BYOK = os.environ.get("ALLOW_BYOK", "1") != "0"
+BYOK_PER_IP_DAILY = int(os.environ.get("BYOK_LIMIT_PER_IP", "20"))
 REPO_URL = "https://github.com/lenaschwantes/ai-video-observatory"
 
 DISPLAY = {
@@ -87,11 +90,11 @@ def render(request: Request, name: str, context: dict, status_code: int = 200) -
     return response
 
 
-def _within_limits(ip: str) -> bool:
+def _within_limits(bucket: str, per_bucket: int = PER_IP_DAILY, count_global: bool = True) -> bool:
     cutoff = time.time() - 86400
-    for key in (ip, "*"):
+    for key in (bucket, "*"):
         _usage[key] = [t for t in _usage[key] if t > cutoff]
-    return len(_usage[ip]) < PER_IP_DAILY and len(_usage["*"]) < GLOBAL_DAILY
+    return len(_usage[bucket]) < per_bucket and (not count_global or len(_usage["*"]) < GLOBAL_DAILY)
 
 
 def _recent(limit: int = 6) -> list[Report]:
@@ -161,7 +164,8 @@ def _home(request: Request, error: str | None = None, status_code: int = 200) ->
     return render(
         request,
         "index.html",
-        {"b": benchmark_view(), "reports": _recent(), "allow_live": ALLOW_LIVE, "error": error, "limit": PER_IP_DAILY},
+        {"b": benchmark_view(), "reports": _recent(), "allow_live": ALLOW_LIVE, "allow_byok": ALLOW_BYOK,
+         "error": error, "limit": PER_IP_DAILY, "providers": PROVIDERS},
         status_code,
     )
 
@@ -178,16 +182,50 @@ STAGES = ["download", "frames", "signals", "visual"]
 _jobs: dict[str, dict] = {}
 
 
-def _start_job(url: str) -> str:
+class BYOK:
+    """A visitor's own vision key. Lives only in this object for one analysis:
+    never written to disk, logged, or echoed back (errors are scrubbed)."""
+
+    def __init__(self, provider: str, model: str, key: str):
+        self.provider, self.model, self._key = provider, model, key
+
+    def assessor(self):
+        def run(frames, frame_dir):
+            result, _ = assess_with(self.provider, self.model, frames, frame_dir, api_key=self._key)
+            result.summary = f"{result.summary} (model: {self.model}, visitor key)"
+            return result
+        return run
+
+    def scrub(self, text: str) -> str:
+        return text.replace(self._key, "***") if self._key else text
+
+
+def _parse_byok(provider: str, model: str, key: str, pt: bool) -> BYOK | None:
+    key = (key or "").strip()
+    if not key:
+        return None
+    if provider not in PROVIDERS:
+        raise ValueError("Escolha um provedor." if pt else "Pick a provider.")
+    if not 10 <= len(key) <= 300 or any(c.isspace() for c in key):
+        raise ValueError("Essa chave não parece válida." if pt else "That key does not look valid.")
+    model = (model or "").strip() or PROVIDERS[provider].default_model or ""
+    if not model:
+        raise ValueError("Informe o modelo para esse provedor." if pt else "Enter the model for this provider.")
+    return BYOK(provider, model, key)
+
+
+def _start_job(url: str, byok: BYOK | None = None) -> str:
     job_id = uuid.uuid4().hex[:12]
     job = _jobs[job_id] = {"stage": "download", "slug": None, "error": None}
+    kwargs = {"assessor": byok.assessor()} if byok else {}
 
     def work():
         try:
-            report = analyze(url, REPORTS_DIR, progress=lambda s: job.update(stage=s))
+            report = analyze(url, REPORTS_DIR, progress=lambda s: job.update(stage=s), **kwargs)
             job.update(stage="done", slug=report.slug)
         except Exception as exc:  # shown to the visitor, so keep it short
-            job.update(stage="error", error=str(exc)[:200])
+            msg = str(exc)
+            job.update(stage="error", error=(byok.scrub(msg) if byok else msg)[:200])
 
     threading.Thread(target=work, daemon=True).start()
     return job_id
@@ -210,46 +248,50 @@ def job_status(request: Request, job_id: str):
 
 
 @app.post("/analyze")
-def run_analysis(request: Request, url: str = Form(...)):
+def run_analysis(
+    request: Request,
+    url: str = Form(...),
+    key_provider: str = Form(""),
+    key_model: str = Form(""),
+    api_key: str = Form(""),
+):
     pt = _lang(request) == "pt"
     htmx = request.headers.get("HX-Request") == "true"
-    if htmx:
-        # htmx swaps the response into the form's status area, so errors and
-        # progress render as fragments rather than full pages.
-        t = i18n.translator(_lang(request))
-        try:
-            if not ALLOW_LIVE:
-                raise ValueError(t("live_off"))
-            url = check_url(url)
-        except (FetchError, ValueError) as exc:
-            msg = str(exc) if isinstance(exc, ValueError) else (
-                "Só links públicos do YouTube, TikTok ou Instagram." if pt else "Only public YouTube, TikTok or Instagram links.")
+    t = i18n.translator(_lang(request))
+
+    def fail(msg: str, status: int):
+        # htmx swaps fragments into the form's status area; plain posts get the page.
+        if htmx:
             return HTMLResponse(f'<div class="error" role="alert">{html.escape(msg)}</div>')
-        ip = request.client.host if request.client else "unknown"
-        if not _within_limits(ip):
-            msg = "Limite diário atingido. Tente amanhã ou rode localmente." if pt else "Daily limit reached. Try tomorrow or run it locally."
-            return HTMLResponse(f'<div class="error" role="alert">{msg}</div>')
-        _usage[ip].append(time.time())
-        _usage["*"].append(time.time())
-        return _progress(request, _start_job(url))
-    if not ALLOW_LIVE:
-        return _home(request, i18n.translator(_lang(request))("live_off"), 403)
+        return _home(request, msg, status)
+
+    try:
+        byok = _parse_byok(key_provider, key_model, api_key, pt)
+    except ValueError as exc:
+        return fail(str(exc), 400)
+    # With the visitor's own key the model cost is theirs, so live analysis is
+    # allowed even when the host switched it off, under a looser limit.
+    if not ALLOW_LIVE and not (byok and ALLOW_BYOK):
+        return fail(t("live_off"), 403)
     try:
         url = check_url(url)
     except FetchError:
-        msg = "Só links públicos do YouTube, TikTok ou Instagram." if pt else "Only public YouTube, TikTok or Instagram links."
-        return _home(request, msg, 400)
+        return fail("Só links públicos do YouTube, TikTok ou Instagram." if pt else "Only public YouTube, TikTok or Instagram links.", 400)
     ip = request.client.host if request.client else "unknown"
-    if not _within_limits(ip):
-        msg = "Limite diário atingido. Tente amanhã ou rode localmente." if pt else "Daily limit reached. Try tomorrow or run it locally."
-        return _home(request, msg, 429)
-    _usage[ip].append(time.time())
-    _usage["*"].append(time.time())
+    bucket = f"byok:{ip}" if byok else ip
+    if not _within_limits(bucket, BYOK_PER_IP_DAILY if byok else PER_IP_DAILY, count_global=not byok):
+        return fail("Limite diário atingido. Tente amanhã ou rode localmente." if pt else "Daily limit reached. Try tomorrow or run it locally.", 429)
+    _usage[bucket].append(time.time())
+    if not byok:
+        _usage["*"].append(time.time())
+
+    if htmx:
+        return _progress(request, _start_job(url, byok))
     try:
-        report = analyze(url, REPORTS_DIR)
+        report = analyze(url, REPORTS_DIR, **({"assessor": byok.assessor()} if byok else {}))
     except FetchError as exc:
-        msg = ("Não foi possível baixar o vídeo: " if pt else "Could not download the video: ") + str(exc)[:200]
-        return _home(request, msg, 422)
+        msg = str(exc)
+        return fail(("Não foi possível baixar o vídeo: " if pt else "Could not download the video: ") + (byok.scrub(msg) if byok else msg)[:200], 422)
     return RedirectResponse(f"/report/{report.slug}", status_code=303)
 
 

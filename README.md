@@ -67,6 +67,8 @@ The dataset has a Brazilian subset (`region=br`): AI clips by Brazilian creators
 
 The `Dockerfile` runs the web UI on port 7860 and works unchanged on Hugging Face Spaces (Docker SDK), Render or Fly. Set `GROQ_API_KEY` (or `ANTHROPIC_API_KEY`) as a secret. Every public analysis costs a model call, so live analysis is rate limited (`LIVE_LIMIT_PER_IP`, `LIVE_LIMIT_PER_DAY`) and can be switched off with `ALLOW_LIVE=0`, in which case the site serves the reports in `examples/reports/`.
 
+Visitors can also **bring their own key** (Groq, Anthropic, OpenAI or Gemini) in the analyzer form. The visual check then runs on their account, so live analysis stays available even with `ALLOW_LIVE=0`, under its own limit (`BYOK_LIMIT_PER_IP`, default 20/day; `ALLOW_BYOK=0` turns it off). The key is used for that one analysis and kept only in memory: it is never written to disk or logs, never returned in a response, and scrubbed from error messages (tested in `tests/test_web.py`). Serve the site over HTTPS.
+
 Downloads from cloud servers are sometimes blocked by the platforms. When that happens the site says so; running locally always works.
 
 ## Design decisions
