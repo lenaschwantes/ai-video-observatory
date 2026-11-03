@@ -1,52 +1,182 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ 'pt-BR' if lang == 'pt' else 'en' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}AI Video Observatory{% endblock %}</title>
+  <title>{% block title %}{{ t('site_name') }}{% endblock %}</title>
+  <meta name="description" content="{{ t('dek') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <script>
+    // Apply a saved theme before paint so there is no flash.
+    try { const s = localStorage.getItem('theme'); if (s) document.documentElement.dataset.theme = s; } catch (e) {}
+  </script>
   <style>
     :root {
-      --bg: #f7f7f5; --surface: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --border: #e3e3e0;
-      --ai: #c2410c; --ai-bg: #fff1e8; --human: #15803d; --human-bg: #ecfdf3; --neutral: #57534e; --neutral-bg: #f1f0ee;
-      --accent: #3730a3;
+      color-scheme: light;
+      --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #6f6d67;
+      --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+      --series-1: #2a78d6; --series-2: #eb6834;
+      --ai: #e34948; --ai-wash: #fbe9e8; --human: #2a78d6; --human-wash: #e6f0fb; --mid: #f0efec;
+      --accent: #c2410c;
+      --serif: "Newsreader", Georgia, "Times New Roman", serif;
+      --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
     }
     @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #111113; --surface: #1b1b1f; --text: #ededf0; --muted: #a0a0a8; --border: #2c2c32;
-        --ai: #fb923c; --ai-bg: #2a1a10; --human: #4ade80; --human-bg: #0f2418; --neutral: #c4c0bb; --neutral-bg: #222226;
-        --accent: #a5b4fc;
+      :root:where(:not([data-theme="light"])) {
+        color-scheme: dark;
+        --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+        --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+        --series-1: #3987e5; --series-2: #d95926;
+        --ai: #e66767; --ai-wash: #3a1c1b; --human: #3987e5; --human-wash: #16263a; --mid: #383835;
+        --accent: #fb923c;
       }
     }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+      --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+      --series-1: #3987e5; --series-2: #d95926;
+      --ai: #e66767; --ai-wash: #3a1c1b; --human: #3987e5; --human-wash: #16263a; --mid: #383835;
+      --accent: #fb923c;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
-    main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
-    a { color: var(--accent); }
-    h1 { font-size: 1.9rem; margin: 0 0 4px; letter-spacing: -0.02em; }
-    h2 { font-size: 1.15rem; margin: 32px 0 12px; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--page); color: var(--ink); font: 17px/1.6 var(--sans); }
+    a { color: inherit; text-decoration-color: var(--axis); text-underline-offset: 3px; }
+    a:hover { text-decoration-color: currentColor; }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+    .prose { max-width: 680px; }
+
+    /* masthead */
+    .masthead { border-bottom: 1px solid var(--grid); background: var(--page); position: sticky; top: 0; z-index: 10; }
+    .masthead .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; }
+    .brand { font-family: var(--serif); font-weight: 600; font-size: 1.15rem; text-decoration: none; letter-spacing: -0.01em; white-space: nowrap; }
+    .brand span { color: var(--accent); }
+    nav.main { display: flex; gap: 20px; align-items: center; font-size: .9rem; }
+    nav.main a { text-decoration: none; color: var(--ink-2); }
+    nav.main a[aria-current="page"], nav.main a:hover { color: var(--ink); }
+    .toggles { display: flex; gap: 6px; align-items: center; }
+    .chip { border: 1px solid var(--grid); background: none; color: var(--ink-2); font: inherit; font-size: .78rem; padding: 3px 8px; border-radius: 999px; cursor: pointer; text-decoration: none; }
+    .chip[aria-pressed="true"], .chip.on { color: var(--ink); border-color: var(--axis); }
+    @media (max-width: 640px) { nav.main .opt { display: none; } nav.main { gap: 12px; } }
+    @media (max-width: 420px) { nav.main .opt2 { display: none; } .brand { font-size: 1.02rem; } }
+
+    /* type */
+    .kicker { font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.015em; line-height: 1.15; }
+    h1 { font-size: clamp(2.1rem, 5.5vw, 3.6rem); margin: 10px 0 16px; }
+    h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 0 0 6px; }
+    h3 { font-size: 1.2rem; margin: 0 0 4px; }
+    .dek { font-size: 1.15rem; color: var(--ink-2); max-width: 680px; }
+    .sub { color: var(--muted); font-size: .92rem; margin: 0 0 18px; }
     .muted { color: var(--muted); }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-    form.analyze { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
-    form.analyze input { flex: 1 1 320px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 1rem; }
-    form.analyze button { padding: 12px 20px; border: 0; border-radius: 10px; background: var(--accent); color: var(--bg); font-weight: 600; font-size: 1rem; cursor: pointer; }
-    form.analyze button[disabled] { opacity: .6; cursor: progress; }
-    .error { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--ai-bg); color: var(--ai); }
-    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .82rem; font-weight: 600; }
-    .likely_ai, .ai { background: var(--ai-bg); color: var(--ai); }
-    .likely_human, .human { background: var(--human-bg); color: var(--human); }
-    .inconclusive, .neutral { background: var(--neutral-bg); color: var(--neutral); }
-    ul.reports { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-    ul.reports a { display: flex; justify-content: space-between; gap: 12px; align-items: center; text-decoration: none; color: inherit; }
-    ul.reports .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    footer { margin-top: 48px; font-size: .85rem; color: var(--muted); }
+    section.block { padding: 56px 0; border-top: 1px solid var(--grid); }
+    section.block:first-of-type { border-top: 0; }
+
+    /* hero number */
+    .hero-num { display: flex; gap: 20px; align-items: baseline; flex-wrap: wrap; margin: 28px 0 8px; }
+    .hero-num .value { font-size: clamp(4rem, 13vw, 7.5rem); font-weight: 700; line-height: .9; letter-spacing: -0.04em; color: var(--ink); }
+    .hero-num .caption { max-width: 420px; font-size: 1.1rem; color: var(--ink-2); }
+
+    /* charts (shared) */
+    .chart { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 20px; }
+    .chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+    .seg { display: inline-flex; border: 1px solid var(--grid); border-radius: 999px; padding: 2px; }
+    .seg button { border: 0; background: none; color: var(--ink-2); font: inherit; font-size: .82rem; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+    .seg button[aria-pressed="true"] { background: var(--ink); color: var(--page); }
+    .legend[hidden] { display: none; }
+    .legend { display: flex; gap: 16px; font-size: .82rem; color: var(--ink-2); flex-wrap: wrap; }
+    .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+    .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page); font-size: .8rem; padding: 6px 9px; border-radius: 6px; opacity: 0; transition: opacity .12s; z-index: 50; max-width: 260px; }
+    svg text { fill: var(--ink-2); font-family: var(--sans); }
+    svg .value-label { fill: var(--ink); font-weight: 600; }
+    svg .tick line { stroke: var(--grid); }
+    svg .domain { stroke: var(--axis); }
+
+    /* tables */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--ring); border-radius: 12px; background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 10px 14px; border-top: 1px solid var(--grid); white-space: nowrap; }
+    thead th { border-top: 0; color: var(--muted); font-weight: 500; font-size: .8rem; }
+    td.num, th.num { text-align: right; }
+
+    /* forms */
+    form.analyze { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    form.analyze input { flex: 1 1 300px; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--axis); background: var(--surface); color: var(--ink); font: inherit; }
+    form.analyze input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .btn { padding: 14px 22px; border: 0; border-radius: 10px; background: var(--ink); color: var(--page); font: inherit; font-weight: 600; cursor: pointer; }
+    .btn[disabled] { opacity: .6; cursor: progress; }
+    .error { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--ai-wash); color: var(--ink); border-left: 3px solid var(--ai); }
+
+    /* verdict pills */
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--grid); white-space: nowrap; }
+    .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .pill.likely_ai::before, .pill.ai::before { background: var(--ai); }
+    .pill.likely_human::before, .pill.human::before { background: var(--human); }
+
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+    .reveal.in { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+
+    footer.site { border-top: 1px solid var(--grid); padding: 28px 0 48px; font-size: .85rem; color: var(--muted); }
   </style>
+  {% block head %}{% endblock %}
 </head>
 <body>
+<header class="masthead">
+  <div class="wrap">
+    <a class="brand" href="/">{% if lang == 'pt' %}Observatório<span>.</span>IA{% else %}Observatory<span>.</span>AI{% endif %}</a>
+    <nav class="main" aria-label="Main">
+      <a href="/benchmarks" {% if path == '/benchmarks' %}aria-current="page"{% endif %}>{{ t('nav_ranking') }}</a>
+      <a class="opt2" href="/#analisar">{{ t('nav_analyze') }}</a>
+      <a class="opt" href="/metodo" {% if path in ('/metodo', '/method') %}aria-current="page"{% endif %}>{{ t('nav_method') }}</a>
+      <span class="toggles">
+        <a class="chip {% if lang == 'pt' %}on{% endif %}" href="?lang=pt" hreflang="pt-BR">PT</a>
+        <a class="chip {% if lang == 'en' %}on{% endif %}" href="?lang=en" hreflang="en">EN</a>
+        <button class="chip" id="theme-toggle" type="button" aria-label="{{ t('theme') }}">◐</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
 <main>
-  {% block content %}{% endblock %}
-  <footer>
-    Open source: <a href="https://github.com/lenaschwantes/ai-video-observatory">github.com/lenaschwantes/ai-video-observatory</a>.
-    Automated estimates, not proof. Videos are deleted after analysis.
-  </footer>
+{% block content %}{% endblock %}
 </main>
+
+<footer class="site">
+  <div class="wrap" style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap">
+    <span>{{ t('made_by') }} <strong style="color:var(--ink)">Helena Schwantes</strong> ·
+      <a href="https://www.linkedin.com/in/helenags" rel="author">LinkedIn</a> ·
+      <a href="https://github.com/lenaschwantes" rel="author">GitHub</a> ·
+      <a href="{{ repo_url }}">{{ t('source_code') }}</a></span>
+    <span>{{ t('footer') }}</span>
+  </div>
+</footer>
+
+<div class="tip" id="tip" role="tooltip"></div>
+<script>
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
+    document.dispatchEvent(new Event('themechange'));
+  });
+  // Fade sections in as they scroll into view.
+  const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+  }), { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+  // Shared tooltip for charts.
+  window.tip = {
+    el: document.getElementById('tip'),
+    show(html, ev) { this.el.innerHTML = html; this.el.style.opacity = 1; this.move(ev); },
+    move(ev) { this.el.style.left = Math.min(ev.clientX + 12, innerWidth - 270) + 'px'; this.el.style.top = (ev.clientY + 14) + 'px'; },
+    hide() { this.el.style.opacity = 0; },
+  };
+</script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

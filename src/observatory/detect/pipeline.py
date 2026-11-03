@@ -39,8 +39,12 @@ def load_report(reports_dir: Path, slug: str) -> Report | None:
     return Report.model_validate_json(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
-def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch, assessor=assess) -> Report:
+def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch, assessor=assess,
+            progress=lambda stage: None) -> Report:
+    """`progress` is called with each stage name (download, frames, signals,
+    visual) so a UI can show where the analysis is."""
     with tempfile.TemporaryDirectory(prefix="observatory-") as tmp:
+        progress("download")
         video, video_path = fetcher(url, Path(tmp))
         slug = slugify(video.platform, video.video_id)
         if not refresh and (cached := load_report(reports_dir, slug)):
@@ -49,13 +53,12 @@ def analyze(url: str, reports_dir: Path, *, refresh: bool = False, fetcher=fetch
         out_dir = reports_dir / slug
         if out_dir.exists():
             shutil.rmtree(out_dir)
+        progress("frames")
         frames = extract_frames(video_path, out_dir)
-        signals = [
-            platform_label_signal(video),
-            provenance_signal(video_path),
-            text_signal(video),
-            visual_signal(frames, out_dir, assessor=assessor),
-        ]
+        progress("signals")
+        signals = [platform_label_signal(video), provenance_signal(video_path), text_signal(video)]
+        progress("visual")
+        signals.append(visual_signal(frames, out_dir, assessor=assessor))
     # leaving the with-block deletes the downloaded video
 
     probability, verdict = combine(signals)

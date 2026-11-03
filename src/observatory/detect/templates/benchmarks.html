@@ -1,52 +1,62 @@
 {% extends "base.html" %}
-{% block title %}Benchmarks · AI Video Observatory{% endblock %}
+{% from "_ranking.html" import ranking with context %}
+{% block title %}{{ t('nav_ranking') }} · {{ t('site_name') }}{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script><script src="/static/charts.js"></script>{% endblock %}
 {% macro pct(x) %}{% if x is none %}n/a{% else %}{{ (x * 100) | round | int }}%{% endif %}{% endmacro %}
 {% macro num(x) %}{% if x is none %}n/a{% else %}{{ '%.2f' | format(x) }}{% endif %}{% endmacro %}
 {% block content %}
-<p><a href="/">← Analyzer</a></p>
-<h1>How good is the visual check?</h1>
-{% if not b or not b.models %}
-<p class="muted">No benchmark has been run yet.</p>
-{% else %}
-<p class="muted">{{ b.dataset.videos }} labelled videos ({{ b.dataset.ai }} AI-generated, {{ b.dataset.real }} real). Every model sees the same keyframes and nothing else: no title, caption or tags. Generated {{ b.generated_at[:10] }}.</p>
+<div class="wrap">
+  <section class="block" style="padding-top:48px">
+    <div class="kicker">{{ t('nav_ranking') }}{% if b.ready and b.generated_at %} · {{ t('updated') }} {{ b.generated_at }}{% endif %}</div>
+    <h1 class="prose">{{ t('headline') }}</h1>
+    {% if not b.ready %}
+    <div class="chart"><h3>{{ t('pending_title') }}</h3>
+      <p class="muted" style="margin:0">{{ t('pending_body', videos=b.dataset.videos, ai=b.dataset.ai, real=b.dataset.real, br=b.dataset.br) }}</p></div>
+    {% else %}
+    <ol class="dek" style="padding-left:1.2em; margin:0 0 28px">
+      <li>{{ t('step_1', videos=b.dataset.videos, ai=b.dataset.ai, real=b.dataset.real) }}</li>
+      <li>{{ t('step_2') }}</li>
+      <li>{{ t('step_3') }}</li>
+    </ol>
+    {{ ranking(b, 'ranking-full') }}
+  </section>
 
-<div class="card" style="overflow-x:auto; margin-top:16px; padding:0">
-<table style="width:100%; border-collapse:collapse; font-size:.92rem">
-  <thead>
-    <tr style="text-align:left">
-      <th style="padding:10px 12px">Model</th>
-      <th style="padding:10px 12px" title="0.5 is a coin flip, 1.0 is perfect">AUC</th>
-      <th style="padding:10px 12px" title="Real videos scored as likely AI: the costly error">Real flagged as AI</th>
-      <th style="padding:10px 12px">AI caught</th>
-      <th style="padding:10px 12px">Inconclusive</th>
-      <th style="padding:10px 12px" title="Lower is better">Calibration error</th>
-      <th style="padding:10px 12px">s / video</th>
-      <th style="padding:10px 12px">Cost / 100</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for m in b.models %}{% set s = m.scores or {} %}
-    <tr style="border-top:1px solid var(--border)">
-      <td style="padding:10px 12px"><strong>{{ m.provider }}</strong><br><code class="muted" style="font-size:.8rem">{{ m.model }}</code></td>
-      <td style="padding:10px 12px">{{ num(s.auc) }}</td>
-      <td style="padding:10px 12px">{{ pct(s.false_positive_rate) }}</td>
-      <td style="padding:10px 12px">{{ pct(s.recall_ai) }}</td>
-      <td style="padding:10px 12px">{{ pct(s.inconclusive_rate) }}</td>
-      <td style="padding:10px 12px">{{ num(s.ece) }}</td>
-      <td style="padding:10px 12px">{{ m.seconds_per_video if m.seconds_per_video is not none else 'n/a' }}</td>
-      <td style="padding:10px 12px">{% if m.cost_per_100_videos_usd is not none %}${{ '%.2f' | format(m.cost_per_100_videos_usd) }}{% else %}n/a{% endif %}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+  <section class="block reveal">
+    <h2>{{ t('table_title') }}</h2>
+    <div class="table-wrap" style="margin-top:16px">
+      <table>
+        <thead><tr>
+          <th>{{ t('col_model') }}</th>
+          <th class="num">{{ t('col_fpr') }}</th><th class="num">{{ t('col_auc') }}</th>
+          <th class="num">{{ t('col_recall') }}</th><th class="num">{{ t('col_missed') }}</th>
+          <th class="num">{{ t('col_inconclusive') }}</th><th class="num">{{ t('col_ece') }}</th>
+          <th class="num">{{ t('col_speed') }}</th><th class="num">{{ t('col_cost') }}</th><th class="num">{{ t('col_failures') }}</th>
+        </tr></thead>
+        <tbody>
+        {% for r in b.rows %}
+          <tr>
+            <td><strong>{{ r.name }}</strong> <span class="muted" style="font-size:.8rem">{{ t('kind_' ~ r.kind) }} · <code>{{ r.model }}</code></span></td>
+            <td class="num">{{ pct(r.fpr) }}</td><td class="num">{{ num(r.auc) }}</td>
+            <td class="num">{{ pct(r.recall) }}</td><td class="num">{{ pct(r.missed) }}</td>
+            <td class="num">{{ pct(r.inconclusive) }}</td><td class="num">{{ num(r.ece) }}</td>
+            <td class="num">{{ r.seconds if r.seconds is not none else 'n/a' }}</td>
+            <td class="num">{% if r.cost is not none %}${{ '%.2f' | format(r.cost) }}{% else %}n/a{% endif %}</td>
+            <td class="num">{{ r.failures }}/{{ r.attempted }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block reveal prose">
+    <h2>{{ t('caveats_title') }}</h2>
+    <ul class="muted">
+      <li>{{ t('caveat_1') }}</li>
+      <li>{{ t('caveat_2') }}</li>
+    </ul>
+    <p><a href="/metodo">{{ t('method_title') }} →</a> · <a href="{{ repo_url }}/blob/main/docs/benchmarks.md">{{ t('full_report') }}</a></p>
+    {% endif %}
+  </section>
 </div>
-
-<h2>Reading it honestly</h2>
-<ul class="muted">
-  <li>The set is small, so a few points of difference between models is noise.</li>
-  <li>"Real flagged as AI" matters most: a false accusation harms a real creator.</li>
-  <li>AI videos come from uploaders who name the generator; real ones were uploaded before 2022. Real videos skew older and lower resolution, which the full report breaks down.</li>
-</ul>
-<p><a href="https://github.com/lenaschwantes/ai-video-observatory/blob/main/docs/benchmarks.md">Full report and method</a></p>
-{% endif %}
 {% endblock %}

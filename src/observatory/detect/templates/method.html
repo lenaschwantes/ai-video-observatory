@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ t('method_title') }} · {{ t('site_name') }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <article class="block prose" style="padding-top:48px">
+    <div class="kicker">{{ t('method_title') }}</div>
+    {% if lang == 'pt' %}
+    <h1>Como o teste funciona</h1>
+    <p class="dek">Um detector só merece confiança se a gente souber quando ele erra. Este é o passo a passo, para que qualquer pessoa possa refazer o teste.</p>
+
+    <h2 style="margin-top:40px">1. Os vídeos</h2>
+    <p>O conjunto tem {{ b.dataset.videos }} vídeos: {{ b.dataset.ai }} gerados por IA e {{ b.dataset.real }} reais, sendo {{ b.dataset.br }} brasileiros. O rótulo de cada um vem de uma regra que não depende de ninguém olhar o vídeo e achar:</p>
+    <ul>
+      <li><strong>IA:</strong> o próprio autor declara o gerador (Sora, Veo, Kling, Runway). Tutoriais, vídeos de reação e animação ficam de fora, para que todo frame seja gerado.</li>
+      <li><strong>Real:</strong> publicado antes de 2022, quando nenhum modelo público gerava vídeo realista. Propagandas de carro e vídeos com muito efeito visual ficam de fora.</li>
+      <li><strong>Brasil:</strong> pares de propósito. Reportagens falsas feitas com IA ao lado de telejornais locais reais; esquetes de igreja ao lado de cultos reais.</li>
+    </ul>
+
+    <h2 style="margin-top:40px">2. A mesma prova para todos</h2>
+    <p>Cada vídeo é baixado uma vez, dividido em cenas, e um frame de cada cena é guardado (até 8 por vídeo). O vídeo é apagado. Todas as ferramentas recebem exatamente esses frames e mais nada: sem título, legenda ou hashtags, que entregariam a resposta.</p>
+    <p>Os detectores comerciais dão uma nota por frame; a nota do vídeo é a média em log-odds. Os modelos de visão recebem todos os frames de uma vez (ou em lotes, quando o provedor limita o número de imagens).</p>
+
+    <h2 style="margin-top:40px">3. As métricas</h2>
+    <ul>
+      <li><strong>Real chamado de IA:</strong> parcela dos vídeos reais com nota ≥ {{ (ai_threshold * 100) | int }}%. É o erro que prejudica uma pessoa de verdade, então vem primeiro.</li>
+      <li><strong>AUC:</strong> chance de um vídeo de IA qualquer receber nota maior que um real qualquer. 0,5 é cara ou coroa; 1,0 é perfeito.</li>
+      <li><strong>IA detectada / IA chamada de real:</strong> parcela dos vídeos de IA com nota ≥ {{ (ai_threshold * 100) | int }}% / ≤ {{ (human_threshold * 100) | int }}%.</li>
+      <li><strong>Inconclusivo:</strong> notas entre {{ (human_threshold * 100) | int }}% e {{ (ai_threshold * 100) | int }}%. Dizer "não sei" é melhor que errar.</li>
+      <li><strong>Erro de calibração:</strong> se a ferramenta diz 80%, ela acerta 80% das vezes? Quanto menor, melhor.</li>
+    </ul>
+
+    <h2 style="margin-top:40px">4. Limites</h2>
+    <ul>
+      <li>O conjunto ainda é pequeno; diferenças de poucos pontos são ruído.</li>
+      <li>Vídeos reais tendem a ser mais antigos e de menor resolução. Uma ferramenta pode acertar por isso, e não por detectar IA. O relatório separa por resolução para medir esse efeito.</li>
+      <li>Frames isolados não mostram movimento. Alguns detectores comerciais analisam o vídeo inteiro e podem ir melhor fora deste teste.</li>
+    </ul>
+
+    <h2 style="margin-top:40px">5. Refaça você</h2>
+    {% else %}
+    <h1>How the test works</h1>
+    <p class="dek">A detector only deserves trust if we know when it fails. This is the procedure, so anyone can re-run it.</p>
+
+    <h2 style="margin-top:40px">1. The videos</h2>
+    <p>The set has {{ b.dataset.videos }} videos: {{ b.dataset.ai }} AI-generated and {{ b.dataset.real }} real, {{ b.dataset.br }} of them Brazilian. Each label comes from a rule, not from someone eyeballing the video:</p>
+    <ul>
+      <li><strong>AI:</strong> the uploader names the generator (Sora, Veo, Kling, Runway). Tutorials, reactions and animation are excluded so every frame is generated.</li>
+      <li><strong>Real:</strong> uploaded before 2022, when no public model could generate realistic video. Car ads and VFX-heavy clips are excluded.</li>
+      <li><strong>Brazil:</strong> paired on purpose. AI-made fake TV reports next to real local news; church sketches next to real services.</li>
+    </ul>
+
+    <h2 style="margin-top:40px">2. Same exam for everyone</h2>
+    <p>Each video is downloaded once, split into scenes, and one frame per scene is kept (up to 8). The video is deleted. Every tool receives exactly those frames and nothing else: no title, caption or hashtags, which would give the answer away.</p>
+    <p>Commercial detectors score each frame; the video score is the mean in log-odds. Vision models get all frames at once (or in batches where the provider caps images per request).</p>
+
+    <h2 style="margin-top:40px">3. The metrics</h2>
+    <ul>
+      <li><strong>Real called AI:</strong> share of real videos scored ≥ {{ (ai_threshold * 100) | int }}%. The error that harms a real person, so it comes first.</li>
+      <li><strong>AUC:</strong> chance that a random AI video scores above a random real one. 0.5 is a coin flip; 1.0 is perfect.</li>
+      <li><strong>AI caught / AI called real:</strong> share of AI videos scored ≥ {{ (ai_threshold * 100) | int }}% / ≤ {{ (human_threshold * 100) | int }}%.</li>
+      <li><strong>Inconclusive:</strong> scores between {{ (human_threshold * 100) | int }}% and {{ (ai_threshold * 100) | int }}%. Saying "don't know" beats being wrong.</li>
+      <li><strong>Calibration error:</strong> when a tool says 80%, is it right 80% of the time? Lower is better.</li>
+    </ul>
+
+    <h2 style="margin-top:40px">4. Limits</h2>
+    <ul>
+      <li>The set is still small; a few points of difference is noise.</li>
+      <li>Real videos skew older and lower resolution. A tool can be right because of that rather than because it detects AI. The report splits by resolution to measure the effect.</li>
+      <li>Isolated frames show no motion. Some commercial detectors analyze the whole video and may do better outside this test.</li>
+    </ul>
+
+    <h2 style="margin-top:40px">5. Re-run it</h2>
+    {% endif %}
+    <pre class="chart" style="overflow-x:auto; font-size:.85rem"><code>pip install -e ".[detect,bench]"
+observatory bench prepare
+observatory bench run --provider all
+observatory bench report</code></pre>
+    <p><a href="{{ repo_url }}">GitHub →</a></p>
+  </article>
+</div>
+{% endblock %}

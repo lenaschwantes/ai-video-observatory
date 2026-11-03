@@ -1,35 +1,85 @@
 {% extends "base.html" %}
+{% from "_ranking.html" import ranking with context %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+<script src="/static/charts.js"></script>
+<style>
+  .spin { width: 14px; height: 14px; border: 2px solid var(--grid); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
 {% block content %}
-<div class="card" style="margin-bottom:20px">
-  <strong>Do AI-video detectors actually work?</strong>
-  <span class="muted">We test commercial detectors and vision models on the same labelled videos, including Brazilian content, and count how often they accuse real footage.</span>
-  <a href="/benchmarks">See the benchmark →</a>
+<div class="wrap">
+  <section class="block" style="padding-top:48px">
+    <div class="kicker">{{ t('kicker') }}{% if b.ready and b.generated_at %} · {{ t('updated') }} {{ b.generated_at }}{% endif %}</div>
+    <h1 class="prose">{{ t('headline') }}</h1>
+    <p class="dek">{{ t('dek') }}</p>
+
+    {% if b.ready %}
+    <div class="hero-num reveal">
+      <span class="value" data-countup data-value="{{ (b.worst.fpr * 100) | round | int }}" data-suffix="%">{{ (b.worst.fpr * 100) | round | int }}%</span>
+      <span class="caption">{{ t('hero_caption', name=b.worst.name) }}<br><span class="muted">{{ t('hero_best', name=b.best.name, value=((b.best.fpr * 100) | round | int | string) ~ '%') }}</span></span>
+    </div>
+    <div class="reveal" style="margin-top:32px">{{ ranking(b, 'ranking-home') }}</div>
+    <p style="margin-top:14px"><a href="/benchmarks">{{ t('see_ranking') }} →</a></p>
+    {% else %}
+    <div class="chart reveal" style="margin-top:28px">
+      <h3>{{ t('pending_title') }}</h3>
+      <p class="muted" style="margin:0">{{ t('pending_body', videos=b.dataset.videos, ai=b.dataset.ai, real=b.dataset.real, br=b.dataset.br) }}</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="block reveal">
+    <h2>{{ t('how_title') }}</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:28px; margin-top:20px">
+      {% for i in [1, 2, 3] %}
+      <div>
+        <div style="font-family:var(--serif); font-size:2.4rem; line-height:1; color:var(--accent)">{{ i }}</div>
+        <h3 style="margin-top:8px">{{ t('how_%d_t' % i) }}</h3>
+        <p class="muted" style="margin:0">{{ t('how_%d_b' % i) }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="block reveal" id="analisar">
+    <div class="prose">
+      <h2>{{ t('try_title') }}</h2>
+      <p class="muted">{{ t('try_body') }}</p>
+      {% if allow_live %}
+      <form class="analyze" method="post" action="/analyze"
+            hx-post="/analyze" hx-target="#analyze-status" hx-swap="innerHTML" hx-disabled-elt="find button">
+        <input type="url" name="url" required placeholder="{{ t('link_placeholder') }}" aria-label="{{ t('link_label') }}">
+        <button class="btn" type="submit">{{ t('analyze_button') }}</button>
+      </form>
+      <div id="analyze-status"></div>
+      <p class="muted" style="font-size:.85rem; margin-top:8px">{{ t('limit_note', limit=limit) }}</p>
+      {% else %}
+      <div class="error" style="border-left-color:var(--axis); background:var(--surface)">{{ t('live_off') }}</div>
+      {% endif %}
+      {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+    </div>
+
+    {% if reports %}
+    <h3 style="margin-top:40px">{{ t('recent_title') }}</h3>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin-top:12px">
+      {% for r in reports %}
+      <a href="/report/{{ r.slug }}" class="chart" style="text-decoration:none; padding:16px; display:block">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px">
+          <span class="pill {{ r.verdict.value }}">{{ t('verdict_' ~ r.verdict.value) }}</span>
+          <strong style="font-size:1.4rem">{{ (r.probability * 100) | round | int }}%</strong>
+        </div>
+        <div style="margin-top:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.video.title or r.slug }}</div>
+        <div class="muted" style="font-size:.8rem">{{ r.video.platform }}</div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
 </div>
-<h1>Is this video AI-generated?</h1>
-<p class="muted">Paste a public YouTube, TikTok or Instagram link. The analyzer combines the platform label, content credentials, the caption and a frame-by-frame visual check, and shows the evidence behind its estimate. <a href="/benchmarks">How accurate is it?</a></p>
-
-{% if allow_live %}
-<form class="analyze" method="post" action="/analyze" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Analyzing… (up to a minute)';">
-  <input type="url" name="url" required placeholder="https://www.youtube.com/shorts/…" aria-label="Video link">
-  <button type="submit">Analyze</button>
-</form>
-<p class="muted" style="font-size:.85rem">Limited to {{ limit }} analyses per visitor per day.</p>
-{% else %}
-<div class="card" style="margin-top:20px">Live analysis is off on this deployment. Browse the example reports below, or run it locally from the repository.</div>
-{% endif %}
-{% if error %}<div class="error">{{ error }}</div>{% endif %}
-
-<h2>Reports</h2>
-{% if reports %}
-<ul class="reports">
-  {% for r in reports %}
-  <li class="card"><a href="/report/{{ r.slug }}">
-    <span class="title">{{ r.video.title or r.slug }} <span class="muted">· {{ r.video.platform }}</span></span>
-    <span class="pill {{ r.verdict.value }}">{{ (r.probability * 100) | round | int }}% · {{ verdict_text[r.verdict.value] }}</span>
-  </a></li>
-  {% endfor %}
-</ul>
-{% else %}
-<p class="muted">No reports yet.</p>
-{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>document.querySelectorAll('[data-countup]').forEach((el) => window.d3 && countUp(el));</script>
 {% endblock %}

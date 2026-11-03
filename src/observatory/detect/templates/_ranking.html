@@ -1,0 +1,51 @@
+{# Interactive ranking: d3 chart with a no-JS table fallback. Needs `b` (benchmark_view). #}
+{% macro ranking(b, chart_id='ranking') %}
+<figure class="chart" style="margin:0">
+  <div class="chart-head">
+    <div>
+      <h3 id="{{ chart_id }}-title">{{ t('chart_fpr_title') }}</h3>
+      <p class="sub" id="{{ chart_id }}-sub" style="margin:0">{{ t('chart_fpr_sub') }}</p>
+    </div>
+    <div class="seg" role="group" aria-label="View" id="{{ chart_id }}-seg">
+      <button type="button" data-view="fpr" aria-pressed="true">{{ t('view_fpr') }}</button>
+      <button type="button" data-view="auc" aria-pressed="false">{{ t('view_auc') }}</button>
+      {% if b.has_regions %}<button type="button" data-view="region" aria-pressed="false">{{ t('view_region') }}</button>{% endif %}
+    </div>
+  </div>
+  <div class="legend" id="{{ chart_id }}-legend" hidden>
+    <span><span class="swatch" style="background:var(--series-2)"></span>{{ t('region_br') }}</span>
+    <span><span class="swatch" style="background:var(--series-1)"></span>{{ t('region_global') }}</span>
+  </div>
+  <div id="{{ chart_id }}" style="width:100%"></div>
+  <noscript>
+    <table>
+      <thead><tr><th>{{ t('col_model') }}</th><th class="num">{{ t('col_fpr') }}</th><th class="num">AUC</th></tr></thead>
+      <tbody>{% for r in b.rows %}<tr><td>{{ r.name }}</td><td class="num">{{ (r.fpr * 100) | round | int }}%</td><td class="num">{{ '%.2f' | format(r.auc) if r.auc is not none else 'n/a' }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </noscript>
+</figure>
+<script type="application/json" id="{{ chart_id }}-data">{{ b.rows | tojson }}</script>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const L = {{ {
+      'coin_flip': t('coin_flip'), 'kind_detector': t('kind_detector'), 'kind_vision': t('kind_vision'),
+      'fpr': t('col_fpr'), 'auc': 'AUC', 'recall': t('col_recall'),
+      'region_br': t('region_br'), 'region_global': t('region_global'),
+      'fpr_aria': t('fpr_aria'), 'auc_aria': t('auc_aria'), 'region_aria': t('region_aria'),
+    } | tojson }};
+    const heads = {
+      fpr: [{{ t('chart_fpr_title') | tojson }}, {{ t('chart_fpr_sub') | tojson }}],
+      auc: [{{ t('chart_auc_title') | tojson }}, {{ t('chart_auc_sub') | tojson }}],
+      region: [{{ t('chart_region_title') | tojson }}, {{ t('chart_region_sub') | tojson }}],
+    };
+    const id = {{ chart_id | tojson }};
+    const rows = JSON.parse(document.getElementById(id + '-data').textContent);
+    const chart = rankingChart(document.getElementById(id), rows, L);
+    bindSegments(document.getElementById(id + '-seg'), chart, (v) => {
+      document.getElementById(id + '-title').textContent = heads[v][0];
+      document.getElementById(id + '-sub').textContent = heads[v][1];
+      document.getElementById(id + '-legend').hidden = v !== 'region';
+    });
+  });
+</script>
+{% endmacro %}

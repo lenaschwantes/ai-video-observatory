@@ -1,0 +1,19 @@
+{# Live progress fragment, polled by htmx until the job redirects to its report. #}
+{% if job.stage == 'error' %}
+<div class="error" role="alert"><strong>{{ t('stage_error') }}.</strong> {{ job.error }}</div>
+{% else %}
+<div class="chart" style="margin-top:16px" hx-get="/jobs/{{ job_id }}" hx-trigger="load delay:900ms" hx-swap="outerHTML" aria-live="polite">
+  <strong>{{ t('progress_title') }}</strong>
+  <ol style="list-style:none; padding:0; margin:12px 0 0">
+    {% set current = stages.index(job.stage) %}
+    {% for s in stages %}
+    <li style="display:flex; align-items:center; gap:10px; padding:5px 0; color:{{ 'var(--ink)' if loop.index0 <= current else 'var(--muted)' }}">
+      {% if loop.index0 < current %}<span aria-hidden="true" style="color:var(--human)">✓</span>
+      {% elif loop.index0 == current %}<span class="spin" aria-hidden="true"></span>
+      {% else %}<span aria-hidden="true" style="opacity:.4">○</span>{% endif %}
+      {{ t('stage_' ~ s) }}
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+{% endif %}

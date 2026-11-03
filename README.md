@@ -119,6 +119,10 @@ Dockerfile                web deployment
 
 Only public videos are analyzed, on request, one at a time. Nothing is redistributed, the video file is deleted after analysis, and every report carries a disclaimer. The tool is meant to prioritise human review, not to accuse anyone.
 
+## Author
+
+Made by **Helena Schwantes**: [LinkedIn](https://www.linkedin.com/in/helenags) · [GitHub](https://github.com/lenaschwantes).
+
 ## License
 
 MIT

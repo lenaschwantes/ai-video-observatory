@@ -1,43 +1,161 @@
 {% extends "base.html" %}
-{% block title %}{{ r.video.title or r.slug }} · AI Video Observatory{% endblock %}
+{% block title %}{{ r.video.title or r.slug }} · {{ t('site_name') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bigger-picture@1.1.20/dist/bigger-picture.css">
+<script src="https://cdn.jsdelivr.net/npm/bigger-picture@1.1.20/dist/bigger-picture.umd.js"></script>
+<style>
+  .verdict { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; }
+  @media (max-width: 640px) { .verdict { grid-template-columns: 1fr; gap: 12px; } }
+  .verdict .big { font-size: clamp(4rem, 14vw, 6.5rem); font-weight: 700; letter-spacing: -0.04em; line-height: .9; }
+  .pbar { position: relative; margin: 34px 0 30px; }
+  .pbar .zones { display: flex; height: 14px; border-radius: 7px; overflow: hidden; gap: 2px; }
+  .pbar .zones div { height: 100%; }
+  .pbar .z-h { background: var(--human-wash); } .pbar .z-i { background: var(--mid); } .pbar .z-a { background: var(--ai-wash); }
+  .pbar .marker { position: absolute; top: -8px; width: 4px; height: 30px; border-radius: 2px; background: var(--ink); transform: translateX(-2px); transition: left 1s cubic-bezier(.2,.8,.2,1); }
+  .pbar .marker::after { content: attr(data-label); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: .75rem; font-weight: 700; white-space: nowrap; }
+  .pbar .labels { display: flex; font-size: .75rem; color: var(--muted); margin-top: 8px; }
+  .pbar .labels span { text-align: center; }
+  .timeline { position: relative; height: 54px; margin: 8px 0 4px; }
+  .timeline .track { position: absolute; left: 0; right: 0; top: 26px; height: 2px; background: var(--axis); }
+  .timeline .mark { position: absolute; top: 18px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; border: 3px solid var(--surface); cursor: pointer; background: var(--muted); padding: 0; }
+  .timeline .mark.ai { background: var(--ai); } .timeline .mark.human { background: var(--human); }
+  .timeline .mark:hover, .timeline .mark:focus-visible { transform: scale(1.3); outline: none; }
+  .tl-axis { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); }
+  .signal { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 18px 0; border-top: 1px solid var(--grid); }
+  .signal:first-child { border-top: 0; }
+  .frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .frame { margin: 0; }
+  .frame a { display: block; position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--ring); }
+  .frame img { display: block; width: 100%; aspect-ratio: 16/10; object-fit: cover; transition: transform .3s; }
+  .frame a:hover img { transform: scale(1.04); }
+  .frame .ts { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.7); color: #fff; font-size: .75rem; padding: 2px 7px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+  .frame figcaption { font-size: .88rem; margin-top: 8px; color: var(--ink-2); }
+  .frame.flash a { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+{% endblock %}
+{% macro dirlabel(d) %}{{ t('dir_' ~ d) }}{% endmacro %}
 {% block content %}
-<p><a href="/">← Analyze another video</a></p>
-<h1>{{ r.video.title or r.slug }}</h1>
-<p class="muted">{{ r.video.platform }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %} · <a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">original</a></p>
+{% set p = (r.probability * 100) | round | int %}
+<div class="wrap">
+  <section class="block" style="padding-top:36px">
+    <p><a href="/#analisar">{{ t('back_analyze') }}</a></p>
+    <div class="kicker">{{ r.video.platform }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %}</div>
+    <h1 class="prose" style="font-size:clamp(1.8rem,4.5vw,2.8rem)">{{ r.video.title or r.slug }}</h1>
+    <p class="muted"><a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">{{ t('original') }} ↗</a></p>
 
-<div class="card" style="display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-top:16px">
-  <div style="font-size:3rem; font-weight:700; line-height:1">{{ (r.probability * 100) | round | int }}%</div>
-  <div>
-    <span class="pill {{ r.verdict.value }}">{{ verdict_text[r.verdict.value] }}</span>
-    <p class="muted" style="margin:6px 0 0">estimated probability of AI generation</p>
-  </div>
-</div>
+    <div class="chart" style="margin-top:24px; padding:28px">
+      <div class="verdict">
+        <div class="big"><span data-countup data-value="{{ p }}" data-suffix="%">{{ p }}%</span></div>
+        <div>
+          <span class="pill {{ r.verdict.value }}" style="font-size:.95rem">{{ t('verdict_' ~ r.verdict.value) }}</span>
+          <p class="muted" style="margin:8px 0 0">{{ t('probability_label') }}</p>
+        </div>
+      </div>
+      <div class="pbar" role="img" aria-label="{{ p }}% — {{ t('verdict_' ~ r.verdict.value) }}">
+        <div class="zones">
+          <div class="z-h" style="width:{{ (human_threshold * 100) | int }}%"></div>
+          <div class="z-i" style="width:{{ ((ai_threshold - human_threshold) * 100) | int }}%"></div>
+          <div class="z-a" style="flex:1"></div>
+        </div>
+        <div class="marker" id="marker" style="left:0%" data-label="{{ p }}%" data-target="{{ p }}"></div>
+        <div class="labels">
+          <span style="width:{{ (human_threshold * 100) | int }}%">{{ t('zone_human') }}</span>
+          <span style="width:{{ ((ai_threshold - human_threshold) * 100) | int }}%">{{ t('zone_inconclusive') }}</span>
+          <span style="flex:1">{{ t('zone_ai') }}</span>
+        </div>
+      </div>
 
-<h2>Evidence</h2>
-<div style="display:grid; gap:12px">
-{% for s in r.signals %}
-  <section class="card">
-    <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap">
-      <strong>{{ s.label }}</strong>
-      {% if s.available %}<span class="pill {{ s.direction.value }}">{% if s.direction.value == 'ai' %}points to AI{% elif s.direction.value == 'human' %}points to human{% else %}neutral{% endif %}</span>
-      {% else %}<span class="pill neutral">not available</span>{% endif %}
+      {% if marks %}
+      <h3 style="margin-top:8px">{{ t('timeline_title') }}</h3>
+      <div class="timeline">
+        <div class="track"></div>
+        {% for m in marks %}
+        <button type="button" class="mark {{ m.dir }}" style="left:{{ (m.pos * 100) | round(2) }}%"
+                data-t="{{ m.t }}" data-tip="<strong>{{ '%.1f' | format(m.t) }}s · {{ dirlabel(m.dir) }}</strong><br>{{ m.text | e }}"
+                aria-label="{{ '%.1f' | format(m.t) }}s: {{ m.text }}"></button>
+        {% endfor %}
+      </div>
+      <div class="tl-axis"><span>0s</span><span>{{ '%.0f' | format(duration) }}s</span></div>
+      {% endif %}
     </div>
-    {% if s.note %}<p class="muted" style="margin:8px 0 0">{{ s.note }}</p>{% endif %}
-    {% if s.evidence %}
-    <ul style="margin:10px 0 0; padding-left:18px">
-      {% for e in s.evidence %}
-      <li style="margin-bottom:10px">
-        <span class="pill {{ e.direction.value }}" style="font-size:.72rem">{{ e.direction.value }}</span>
-        {% if e.timestamp is not none %}<span class="muted">{{ '%.1f' | format(e.timestamp) }}s</span>{% endif %}
-        {{ e.text }}
-        {% if e.frame %}<br><img src="/media/{{ r.slug }}/{{ e.frame }}" alt="Frame at {{ e.timestamp }}s" loading="lazy" style="max-width:100%; width:320px; border-radius:8px; margin-top:6px">{% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-    {% endif %}
   </section>
-{% endfor %}
-</div>
 
-<p class="muted" style="margin-top:24px; font-size:.9rem">{{ r.disclaimer }}<br>Method {{ r.method_version }} · analyzed {{ r.analyzed_at.strftime('%Y-%m-%d %H:%M UTC') }} · <a href="/api/report/{{ r.slug }}">JSON</a></p>
+  {% set framed = [] %}
+  {% for s in r.signals %}{% for e in s.evidence %}{% if e.frame %}{% set _ = framed.append(e) %}{% endif %}{% endfor %}{% endfor %}
+  {% if framed %}
+  <section class="block reveal">
+    <h2>{{ t('evidence_title') }}</h2>
+    <p class="sub">{{ t('zoom_hint') }}</p>
+    <div class="frames" id="frames">
+      {% for e in framed %}
+      <figure class="frame" data-t="{{ e.timestamp }}">
+        <a href="/media/{{ r.slug }}/{{ e.frame }}" data-img="/media/{{ r.slug }}/{{ e.frame }}" data-alt="{{ e.text }}" data-caption="{{ e.text }}">
+          <img src="/media/{{ r.slug }}/{{ e.frame }}" alt="{{ t('frame_alt', t='%.1f' % (e.timestamp or 0)) }}" loading="lazy">
+          <span class="ts">{{ '%.1f' | format(e.timestamp or 0) }}s</span>
+        </a>
+        <figcaption><span class="pill {{ e.direction.value }}" style="font-size:.7rem">{{ dirlabel(e.direction.value) }}</span> {{ e.text }}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="block reveal">
+    <h2>{{ ('Os %d sinais' if lang == 'pt' else 'The %d signals') % (r.signals | length) }}</h2>
+    <div class="chart" style="padding:4px 24px; margin-top:16px">
+      {% for s in r.signals %}
+      <div class="signal">
+        <strong>{{ t('sig_' ~ s.name) }}</strong>
+        <span>{% if not s.available %}<span class="pill">{{ t('not_available') }}</span>
+          {% elif s.direction.value == 'ai' %}<span class="pill ai">{{ t('points_ai') }}</span>
+          {% elif s.direction.value == 'human' %}<span class="pill human">{{ t('points_human') }}</span>
+          {% else %}<span class="pill">{{ t('neutral') }}</span>{% endif %}</span>
+        {% if s.note %}<p class="muted" style="margin:0; grid-column:1 / -1">{{ note(s.note) }}</p>{% endif %}
+        {% set loose = s.evidence | rejectattr('frame') | list %}
+        {% if loose %}<ul style="margin:6px 0 0; grid-column:1 / -1; padding-left:18px">
+          {% for e in loose %}<li>{{ e.text }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <p class="muted" style="font-size:.88rem; margin-top:20px">{{ t('disclaimer') }}<br>
+      {{ t('method_line', v=r.method_version, when=r.analyzed_at.strftime('%Y-%m-%d %H:%M UTC')) }} · <a href="/api/report/{{ r.slug }}">{{ t('json') }}</a></p>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Probability marker slides in from 0.
+  requestAnimationFrame(() => { const m = document.getElementById('marker'); m.style.left = m.dataset.target + '%'; });
+  // Count-up for the big number (no d3 on this page).
+  document.querySelectorAll('[data-countup]').forEach((el) => {
+    const target = +el.dataset.value; const start = performance.now();
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const step = (now) => { const k = Math.min(1, (now - start) / 1000); el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3))) + '%'; if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+  // Lightbox for evidence frames.
+  const links = [...document.querySelectorAll('#frames a')];
+  links.forEach((a) => {
+    const img = a.querySelector('img');
+    const size = () => { a.dataset.width = img.naturalWidth || 768; a.dataset.height = img.naturalHeight || 432; };
+    img.complete ? size() : img.addEventListener('load', size);
+    a.addEventListener('click', (ev) => {
+      if (!window.BiggerPicture) return;
+      ev.preventDefault();
+      (window._bp ||= BiggerPicture({ target: document.body })).open({ items: links, el: a });
+    });
+  });
+  // Timeline: hover shows the clue, click scrolls to its frame.
+  document.querySelectorAll('.timeline .mark').forEach((m) => {
+    m.addEventListener('mouseenter', (ev) => tip.show(m.dataset.tip, ev));
+    m.addEventListener('mousemove', (ev) => tip.move(ev));
+    m.addEventListener('mouseleave', () => tip.hide());
+    m.addEventListener('click', () => {
+      const fig = document.querySelector(`.frame[data-t="${m.dataset.t}"]`);
+      if (!fig) return;
+      fig.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      fig.classList.add('flash'); setTimeout(() => fig.classList.remove('flash'), 1600);
+    });
+  });
+</script>
 {% endblock %}
