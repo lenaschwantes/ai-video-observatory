@@ -173,6 +173,14 @@ def _num(x: float | None, digits: int = 2) -> str:
     return "n/a" if x is None else f"{x:.{digits}f}"
 
 
+def _ci(ci, fmt) -> str:
+    return f" [{fmt(ci[0])}–{fmt(ci[1])}]" if ci else ""
+
+
+def _count(s: dict, k: str, n: str) -> str:
+    return f" ({s[k]}/{s[n]})" if s.get(n) else ""
+
+
 def report(rows: list[dict], results: Path = RESULTS, docs: Path = DOCS, prices_file: Path = PRICES) -> list[dict]:
     heights = {r["id"]: int(float(r["height"] or 0)) for r in rows}
     regions = {r["id"]: r.get("region") or "global" for r in rows}
@@ -205,15 +213,19 @@ def _markdown(payload: dict) -> str:
         f"Dataset: **{d['videos']} videos** ({d['ai']} AI-generated, {d['real']} real). "
         "Every model sees the same keyframes (up to 8 per video, one per scene) and nothing else: no title, caption or tags.",
         "",
-        "| Model | AUC | Real flagged as AI | AI caught | AI called real | Inconclusive | Brier | Calibration error | s / video | Cost / 100 videos | Failures |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        "Brackets are 95% intervals (Wilson for rates, bootstrap for AUC): with a set this small they are wide, and two models whose intervals overlap are not shown to differ.",
+        "",
+        "| Model | AUC | Real flagged as AI | AI caught | AI caught, no real flagged | AI called real | Inconclusive | Brier | Calibration error | s / video | Cost / 100 videos | Failures |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for m in payload["models"]:
         s = m["scores"] or {}
         cost = f"${m['cost_per_100_videos_usd']:.2f}" if m["cost_per_100_videos_usd"] is not None else "n/a"
         lines.append(
-            f"| {m['provider']} / `{m['model']}` | {_num(s.get('auc'))} | {_pct(s.get('false_positive_rate'))} | "
-            f"{_pct(s.get('recall_ai'))} | {_pct(s.get('missed_as_human'))} | {_pct(s.get('inconclusive_rate'))} | "
+            f"| {m['provider']} / `{m['model']}` | {_num(s.get('auc'))}{_ci(s.get('auc_ci'), _num)} | "
+            f"{_pct(s.get('false_positive_rate'))}{_count(s, 'false_positives', 'n_real')}{_ci(s.get('false_positive_rate_ci'), _pct)} | "
+            f"{_pct(s.get('recall_ai'))}{_ci(s.get('recall_ai_ci'), _pct)} | {_pct(s.get('recall_at_zero_fpr'))} | "
+            f"{_pct(s.get('missed_as_human'))} | {_pct(s.get('inconclusive_rate'))} | "
             f"{_num(s.get('brier'))} | {_num(s.get('ece'))} | {_num(m['seconds_per_video'], 1)} | {cost} | "
             f"{m['failures']}/{m['attempted']} |"
         )
