@@ -12,7 +12,7 @@ function rankingChart(root, rows, L) {
   const dec = (x) => (x == null ? "n/a" : x.toFixed(2));
   const margin = { top: 8, right: 64, bottom: 28, left: 150 };
   const rowH = 44;
-  const svg = d3.select(root).append("svg").attr("role", "img");
+  const svg = d3.select(root).append("svg").attr("role", "group");
   const gx = svg.append("g").attr("class", "x-axis");
   const gRef = svg.append("g");
   const gRows = svg.append("g");
@@ -98,16 +98,26 @@ function rankingChart(root, rows, L) {
       .transition(t)
       .attr("x", (d) => (view === "auc" ? x(d.auc) : view === "fpr" ? x(d.fpr) : x(Math.max(d.fpr_br, d.fpr_global))) + 10);
 
+    const count = (d) => (d.real_flagged != null && d.n_real ? ` (${d.real_flagged}/${d.n_real})` : "");
+    const details = (d) => `<strong>${d.name}</strong> <span style="opacity:.7">${d.model}</span><br>` +
+      `${L.fpr}: ${pct(d.fpr)}${count(d)}<br>${L.auc}: ${dec(d.auc)}<br>${L.recall}: ${d.recall == null ? "n/a" : pct(d.recall)}` +
+      (d.fpr_br != null ? `<br>${L.region_br}: ${pct(d.fpr_br)} · ${L.region_global}: ${pct(d.fpr_global)}` : "");
+    const label = (d) => `${d.name}, ${L["kind_" + d.kind]}. ${L.fpr}: ${pct(d.fpr)}${count(d)}. ${L.auc}: ${dec(d.auc)}.` +
+      (d.fpr_br != null ? ` ${L.region_br}: ${pct(d.fpr_br)}, ${L.region_global}: ${pct(d.fpr_global)}.` : "");
+    const atElement = (el) => { const r = el.getBoundingClientRect(); return { clientX: r.left + 40, clientY: r.top + r.height / 2 }; };
+    const highlight = (el, on) => d3.select(el).select(".bar").attr("opacity", on ? 0.8 : 1);
+
+    // Each row is a focusable, labelled element: hover, keyboard focus and tap all show the details.
+    all.attr("tabindex", 0).attr("role", "img").attr("aria-label", label)
+      .on("focus", (ev, d) => { tip.show(details(d), atElement(ev.currentTarget)); highlight(ev.currentTarget, true); })
+      .on("blur", (ev) => { tip.hide(); highlight(ev.currentTarget, false); });
     all.select(".hit")
-      .on("mouseenter", (ev, d) => {
-        tip.show(`<strong>${d.name}</strong> <span style="opacity:.7">${d.model}</span><br>` +
-          `${L.fpr}: ${pct(d.fpr)}<br>${L.auc}: ${dec(d.auc)}<br>${L.recall}: ${d.recall == null ? "n/a" : pct(d.recall)}` +
-          (d.fpr_br != null ? `<br>${L.region_br}: ${pct(d.fpr_br)} · ${L.region_global}: ${pct(d.fpr_global)}` : ""), ev);
-        d3.select(ev.currentTarget.parentNode).select(".bar").attr("opacity", 0.8);
-      })
+      .on("mouseenter", (ev, d) => { tip.show(details(d), ev); highlight(ev.currentTarget.parentNode, true); })
       .on("mousemove", (ev) => tip.move(ev))
-      .on("mouseleave", (ev) => { tip.hide(); d3.select(ev.currentTarget.parentNode).select(".bar").attr("opacity", 1); });
+      .on("mouseleave", (ev) => { tip.hide(); highlight(ev.currentTarget.parentNode, false); })
+      .on("click", (ev, d) => { ev.stopPropagation(); tip.show(details(d), ev); });
   }
+  document.addEventListener("click", () => tip.hide());
 
   draw(false);
   new ResizeObserver(() => { if (Math.abs(root.clientWidth - width) > 4) draw(false); }).observe(root);

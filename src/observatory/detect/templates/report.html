@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ r.video.title or r.slug }} · {{ t('site_name') }}{% endblock %}
 {% block head %}
+{% if r.video.platform == 'upload' %}<meta name="robots" content="noindex, nofollow">{% endif %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bigger-picture@1.1.20/dist/bigger-picture.css">
 <script src="https://cdn.jsdelivr.net/npm/bigger-picture@1.1.20/dist/bigger-picture.umd.js"></script>
 <style>
@@ -17,9 +18,16 @@
   .pbar .labels span { text-align: center; }
   .timeline { position: relative; height: 54px; margin: 8px 0 4px; }
   .timeline .track { position: absolute; left: 0; right: 0; top: 26px; height: 2px; background: var(--axis); }
-  .timeline .mark { position: absolute; top: 18px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; border: 3px solid var(--surface); cursor: pointer; background: var(--muted); padding: 0; }
-  .timeline .mark.ai { background: var(--ai); } .timeline .mark.human { background: var(--human); }
-  .timeline .mark:hover, .timeline .mark:focus-visible { transform: scale(1.3); outline: none; }
+  /* 32px hit area around a 16px dot (WCAG 2.2 target size) */
+  .timeline .mark { position: absolute; top: 11px; width: 32px; height: 32px; margin-left: -16px; border: 0; padding: 0; background: none; cursor: pointer; border-radius: 50%; }
+  .timeline .mark::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 3px var(--surface); transition: transform .15s; }
+  .timeline .mark.ai::before { background: var(--ai); } .timeline .mark.human::before { background: var(--human); }
+  .timeline .mark.mixed::before { background: linear-gradient(90deg, var(--ai) 50%, var(--human) 50%); }
+  .timeline .mark:hover::before, .timeline .mark:focus-visible::before { transform: scale(1.35); }
+  .timeline .mark .n { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: .68rem; font-weight: 700; color: var(--ink); }
+  .frame figcaption .txt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .frame figcaption.open .txt { -webkit-line-clamp: unset; }
+  .more { border: 0; background: none; padding: 4px 0; color: var(--accent); font: inherit; font-size: .82rem; cursor: pointer; }
   .tl-axis { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); }
   .signal { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 18px 0; border-top: 1px solid var(--grid); }
   .signal:first-child { border-top: 0; }
@@ -66,13 +74,14 @@
       </div>
 
       {% if marks %}
-      <h3 style="margin-top:8px">{{ t('timeline_title') }}</h3>
+      <h2 class="h3-look" style="margin-top:8px">{{ t('timeline_title') }}</h2>
       <div class="timeline">
         <div class="track"></div>
         {% for m in marks %}
+        {% set tiptext %}<strong>{{ '%.1f' | format(m.t) }}s{% if m.n > 1 %} · {{ t('clues', n=m.n) }}{% endif %}</strong>{% for x in m.texts %}<br>• {{ x | e }}{% endfor %}{% endset %}
         <button type="button" class="mark {{ m.dir }}" style="left:{{ (m.pos * 100) | round(2) }}%"
-                data-t="{{ m.t }}" data-tip="<strong>{{ '%.1f' | format(m.t) }}s · {{ dirlabel(m.dir) }}</strong><br>{{ m.text | e }}"
-                aria-label="{{ '%.1f' | format(m.t) }}s: {{ m.text }}"></button>
+                data-t="{{ m.t }}" data-tip="{{ tiptext | trim }}"
+                aria-label="{{ '%.1f' | format(m.t) }}s: {{ m.texts | join(' · ') }}">{% if m.n > 1 %}<span class="n" aria-hidden="true">{{ m.n }}</span>{% endif %}</button>
         {% endfor %}
       </div>
       <div class="tl-axis"><span>0s</span><span>{{ '%.0f' | format(duration) }}s</span></div>
@@ -88,12 +97,14 @@
     <p class="sub">{{ t('zoom_hint') }}</p>
     <div class="frames" id="frames">
       {% for e in framed %}
-      <figure class="frame" data-t="{{ e.timestamp }}">
-        <a href="/media/{{ r.slug }}/{{ e.frame }}" data-img="/media/{{ r.slug }}/{{ e.frame }}" data-alt="{{ e.text }}" data-caption="{{ e.text }}">
+      <figure class="frame" data-t="{{ (e.timestamp or 0) | round(1) }}">
+        <a href="/media/{{ r.slug }}/{{ e.frame }}" data-img="/media/{{ r.slug }}/{{ e.frame }}" data-alt="{{ ev(e.text) }}" data-caption="{{ ev(e.text) }}">
           <img src="/media/{{ r.slug }}/{{ e.frame }}" alt="{{ t('frame_alt', t='%.1f' % (e.timestamp or 0)) }}" loading="lazy">
           <span class="ts">{{ '%.1f' | format(e.timestamp or 0) }}s</span>
         </a>
-        <figcaption><span class="pill {{ e.direction.value }}" style="font-size:.7rem">{{ dirlabel(e.direction.value) }}</span> {{ e.text }}</figcaption>
+        <figcaption><span class="txt"><span class="pill {{ e.direction.value }}" style="font-size:.7rem">{{ dirlabel(e.direction.value) }}</span> {{ ev(e.text) }}</span>
+          {% if (e.text | length) > 140 %}<button type="button" class="more" aria-expanded="false" data-more="{{ t('show_more') }}" data-less="{{ t('show_less') }}">{{ t('show_more') }}</button>{% endif %}
+        </figcaption>
       </figure>
       {% endfor %}
     </div>
@@ -113,7 +124,7 @@
         {% if s.note %}<p class="muted" style="margin:0; grid-column:1 / -1">{{ note(s.note) }}</p>{% endif %}
         {% set loose = s.evidence | rejectattr('frame') | list %}
         {% if loose %}<ul style="margin:6px 0 0; grid-column:1 / -1; padding-left:18px">
-          {% for e in loose %}<li>{{ e.text }}</li>{% endfor %}</ul>{% endif %}
+          {% for e in loose %}<li>{{ ev(e.text) }}</li>{% endfor %}</ul>{% endif %}
       </div>
       {% endfor %}
     </div>
@@ -145,11 +156,19 @@
       (window._bp ||= BiggerPicture({ target: document.body })).open({ items: links, el: a });
     });
   });
+  // Long captions: clamp to three lines with a toggle.
+  document.querySelectorAll('.frame .more').forEach((b) => b.addEventListener('click', () => {
+    const open = b.parentElement.classList.toggle('open');
+    b.setAttribute('aria-expanded', String(open));
+    b.textContent = open ? b.dataset.less : b.dataset.more;
+  }));
   // Timeline: hover shows the clue, click scrolls to its frame.
   document.querySelectorAll('.timeline .mark').forEach((m) => {
     m.addEventListener('mouseenter', (ev) => tip.show(m.dataset.tip, ev));
     m.addEventListener('mousemove', (ev) => tip.move(ev));
     m.addEventListener('mouseleave', () => tip.hide());
+    m.addEventListener('focus', () => { const r = m.getBoundingClientRect(); tip.show(m.dataset.tip, { clientX: r.left, clientY: r.bottom }); });
+    m.addEventListener('blur', () => tip.hide());
     m.addEventListener('click', () => {
       const fig = document.querySelector(`.frame[data-t="${m.dataset.t}"]`);
       if (!fig) return;

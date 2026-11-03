@@ -32,9 +32,18 @@ noise, motion blur consistent with the camera, legible text, persistent fine det
 Calibrate carefully:
 - Cartoons, CGI, games, heavy filters and compression are NOT evidence of AI generation by themselves.
 - Low resolution limits what you can see; say so and stay near 0.5 instead of guessing.
-- Every finding must name the frame index and describe what is visible there.
+- Every finding must name the frame index and describe what is visible there, in at most 25 words.
 
 Return ai_likelihood between 0 and 1."""
+
+LANGUAGE_NAMES = {"pt": "Brazilian Portuguese", "en": "English"}
+
+
+def _prompt(n: int, language: str = "en") -> str:
+    """The forensic prompt, asking for observations and summary in the reader's language."""
+    name = LANGUAGE_NAMES.get(language, "English")
+    return PROMPT.format(n=n) + f"\nWrite every observation and the summary in {name}."
+
 
 JSON_INSTRUCTIONS = """
 Answer with a single JSON object and nothing else, in this shape:
@@ -123,14 +132,15 @@ def _parse(raw: str) -> VisualAssessment:
         raise RuntimeError(f"model returned JSON outside the contract: {exc.errors()[:2]}") from exc
 
 
-def _call_anthropic(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
+def _call_anthropic(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None,
+                    language: str = "en") -> tuple[VisualAssessment, Usage]:
     import anthropic
 
     content: list[dict] = []
     for f in frames:
         content.append({"type": "text", "text": f"Frame {f.index} at {f.timestamp:.1f}s"})
         content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": _b64(frame_dir / f.file)}})
-    content.append({"type": "text", "text": PROMPT.format(n=len(frames))})
+    content.append({"type": "text", "text": _prompt(len(frames), language)})
     response = anthropic.Anthropic(api_key=api_key).beta.messages.parse(
         model=model,
         max_tokens=16000,
@@ -145,40 +155,43 @@ def _call_anthropic(model: str, frames: list[Frame], frame_dir: Path, api_key: s
     return response.parsed_output, Usage(response.usage.input_tokens, response.usage.output_tokens, 1)
 
 
-def _openai_style_content(frames: list[Frame], frame_dir: Path) -> list[dict]:
+def _openai_style_content(frames: list[Frame], frame_dir: Path, language: str = "en") -> list[dict]:
     content: list[dict] = []
     for f in frames:
         content.append({"type": "text", "text": f"Frame {f.index} at {f.timestamp:.1f}s"})
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{_b64(frame_dir / f.file)}"}})
-    content.append({"type": "text", "text": PROMPT.format(n=len(frames)) + JSON_INSTRUCTIONS})
+    content.append({"type": "text", "text": _prompt(len(frames), language) + JSON_INSTRUCTIONS})
     return content
 
 
-def _call_groq(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
+def _call_groq(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None,
+               language: str = "en") -> tuple[VisualAssessment, Usage]:
     from groq import Groq
 
     completion = Groq(api_key=api_key, max_retries=5).chat.completions.create(
         model=model,
-        messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir)}],
+        messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir, language)}],
         response_format={"type": "json_object"},
     )
     u = completion.usage
     return _parse(completion.choices[0].message.content or ""), Usage(u.prompt_tokens, u.completion_tokens, 1)
 
 
-def _call_openai(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
+def _call_openai(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None,
+                 language: str = "en") -> tuple[VisualAssessment, Usage]:
     from openai import OpenAI
 
     completion = OpenAI(api_key=api_key, max_retries=5).chat.completions.create(
         model=model,
-        messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir)}],
+        messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir, language)}],
         response_format={"type": "json_object"},
     )
     u = completion.usage
     return _parse(completion.choices[0].message.content or ""), Usage(u.prompt_tokens, u.completion_tokens, 1)
 
 
-def _call_gemini(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
+def _call_gemini(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None,
+                 language: str = "en") -> tuple[VisualAssessment, Usage]:
     from google import genai
     from google.genai import types
 
@@ -186,7 +199,7 @@ def _call_gemini(model: str, frames: list[Frame], frame_dir: Path, api_key: str 
     for f in frames:
         parts.append(f"Frame {f.index} at {f.timestamp:.1f}s")
         parts.append(types.Part.from_bytes(data=(frame_dir / f.file).read_bytes(), mime_type="image/jpeg"))
-    parts.append(PROMPT.format(n=len(frames)) + JSON_INSTRUCTIONS)
+    parts.append(_prompt(len(frames), language) + JSON_INSTRUCTIONS)
     response = genai.Client(api_key=api_key).models.generate_content(
         model=model,
         contents=parts,
@@ -216,7 +229,7 @@ def merge(results: list[VisualAssessment]) -> VisualAssessment:
 
 
 def assess_with(name: str, model: str, frames: list[Frame], frame_dir: Path,
-                api_key: str | None = None) -> tuple[VisualAssessment, Usage]:
+                api_key: str | None = None, language: str = "en") -> tuple[VisualAssessment, Usage]:
     """Run one provider on the frames, batching when it caps images per request.
     `api_key` overrides the environment for this call only (a visitor's own key)."""
     call = CALLERS[name]
@@ -225,26 +238,27 @@ def assess_with(name: str, model: str, frames: list[Frame], frame_dir: Path,
     usage, results = Usage(), []
     for batch in batches:
         start = time.perf_counter()
-        result, u = call(model, batch, frame_dir, api_key=api_key)
+        result, u = call(model, batch, frame_dir, api_key=api_key, language=language)
         u.seconds = time.perf_counter() - start
         usage.add(u)
         results.append(result)
     return (results[0] if len(results) == 1 else merge(results)), usage
 
 
-def assess(frames: list[Frame], frame_dir: Path) -> VisualAssessment:
+def assess(frames: list[Frame], frame_dir: Path, language: str = "en") -> VisualAssessment:
     name = provider()
     model = model_for(name) if name else None
     if not name or not model:
         raise RuntimeError("no vision provider configured")
-    return assess_with(name, model, frames, frame_dir)[0]
+    return assess_with(name, model, frames, frame_dir, language=language)[0]
 
 
 def visual_signal(frames: list[Frame], frame_dir: Path, assessor=assess) -> Signal:
     label = "Visual analysis of keyframes"
     if not frames:
         return Signal(name="visual", label=label, available=False, note="No frames could be extracted.")
-    if assessor is assess and provider() is None:
+    default = getattr(assessor, "func", assessor) is assess  # plain or language-bound default
+    if default and provider() is None:
         return Signal(name="visual", label=label, available=False, note="Set GROQ_API_KEY or ANTHROPIC_API_KEY to enable it.")
     try:
         result = assessor(frames, frame_dir)
@@ -262,6 +276,6 @@ def visual_signal(frames: list[Frame], frame_dir: Path, assessor=assess) -> Sign
         )
         for f in result.findings
     ]
-    note = f"{result.summary} (model: {model_name()})" if assessor is assess else result.summary
+    note = f"{result.summary} (model: {model_name()})" if default else result.summary
     # Shrink the model's log-odds: an uncalibrated judge should not dominate.
     return Signal(name="visual", label=label, available=True, llr=0.8 * math.log(p / (1 - p)), evidence=evidence, note=note)

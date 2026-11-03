@@ -58,7 +58,7 @@ def test_ranking_renders_hero_from_benchmark(client, tmp_path, monkeypatch):
     ]}))
     monkeypatch.setattr(web, "BENCHMARKS_FILE", bench)
     page = client.get("/?lang=en").text
-    assert "of real videos were called AI by Sightengine" in page
+    assert "were called AI by Sightengine" in page
     assert "Fewest errors: Claude, at 0%." in page
     assert client.get("/benchmarks").status_code == 200
     assert client.get("/metodo").status_code == 200
@@ -82,7 +82,7 @@ def test_htmx_job_reports_progress_then_redirects(client, tmp_path, monkeypatch)
     report = _report(tmp_path)
     release = threading.Event()
 
-    def fake_analyze(url, reports_dir, progress):
+    def fake_analyze(url, reports_dir, progress, assessor=None):
         progress("frames")
         release.wait(5)
         progress("visual")
@@ -127,7 +127,7 @@ def test_visitor_key_reaches_the_provider_and_is_never_echoed(client, tmp_path, 
         except RuntimeError as exc:
             raise RuntimeError(f"provider rejected key {SECRET}: {exc}")
 
-    def fake_assess_with(provider, model, frames, frame_dir, api_key=None):
+    def fake_assess_with(provider, model, frames, frame_dir, api_key=None, language="en"):
         seen.update(provider=provider, model=model, key=api_key)
         raise RuntimeError("401")
 
@@ -208,3 +208,48 @@ def test_byok_form_explains_free_keys_and_that_the_model_matters(client):
     assert "https://console.groq.com/keys" in page and "https://aistudio.google.com/apikey" in page
     assert "O modelo muda o resultado" in page and 'href="/benchmarks"' in page
     assert "The model changes the result" in client.get("/?lang=en").text
+
+
+def test_missing_report_gets_a_friendly_page_but_api_stays_json(client):
+    page = client.get("/report/nope?lang=pt")
+    assert page.status_code == 404 and "Não encontramos esta página" in page.text
+    api = client.get("/api/report/nope")
+    assert api.status_code == 404 and api.json() == {"detail": "report not found"}
+
+
+def test_link_preview_tags_and_icon(client):
+    page = client.get("/?lang=en").text
+    assert 'property="og:image" content="http://testserver/static/og-en.png"' in page
+    assert client.get("/static/og-en.png").status_code == 200
+    assert client.get("/static/favicon.svg").status_code == 200
+
+
+def test_reveal_sections_are_only_hidden_when_js_runs(client):
+    page = client.get("/").text
+    assert ".js .reveal { opacity: 0" in page and "classList.add('js')" in page
+
+
+def test_uploaded_reports_stay_out_of_the_public_list(client, tmp_path):
+    r = _report(tmp_path)
+    up = r.model_copy(update={"slug": "upload-abc", "video": r.video.model_copy(update={"platform": "upload", "title": "private.mp4"})})
+    (tmp_path / "upload-abc").mkdir()
+    (tmp_path / "upload-abc" / "report.json").write_text(up.model_dump_json())
+    home = client.get("/?lang=en").text
+    assert "/report/youtube-x" in home and "upload-abc" not in home and "private.mp4" not in home
+    page = client.get("/report/upload-abc").text
+    assert 'name="robots" content="noindex, nofollow"' in page
+
+
+def test_uploads_can_be_switched_off(client, monkeypatch):
+    monkeypatch.setattr(web, "ALLOW_UPLOAD", False)
+    assert 'type="file"' not in client.get("/").text
+    resp = client.post("/analyze", files={"file": ("clip.mp4", b"x", "video/mp4")}, headers={"HX-Request": "true"})
+    assert 'class="error"' in resp.text
+
+
+def test_home_survives_a_benchmark_file_from_an_older_version(client, tmp_path, monkeypatch):
+    bench = tmp_path / "old.json"
+    bench.write_text(json.dumps({"models": [{"provider": "groq", "model": "m", "attempted": 2, "failures": 0,
+                                             "scores": {"false_positive_rate": 0.5, "auc": 0.7, "n_real": 2}}]}))
+    monkeypatch.setattr(web, "BENCHMARKS_FILE", bench)
+    assert client.get("/").status_code == 200

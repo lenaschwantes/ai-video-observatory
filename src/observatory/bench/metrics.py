@@ -4,8 +4,8 @@ numbers are easy to audit."""
 from __future__ import annotations
 
 import math
-from bisect import bisect_left, bisect_right
 import random
+from bisect import bisect_left, bisect_right
 from dataclasses import asdict, dataclass
 
 AI_THRESHOLD = 0.75

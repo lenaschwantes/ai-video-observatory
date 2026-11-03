@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ t('notfound_title') }} · {{ t('site_name') }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <section class="block prose" style="padding:96px 0">
+    <div class="kicker">404</div>
+    <h1>{{ t('notfound_title') }}</h1>
+    <p class="dek">{{ t('notfound_body') }}</p>
+    <p style="margin-top:24px"><a class="btn" href="/" style="text-decoration:none; display:inline-block">{{ t('notfound_cta') }}</a></p>
+  </section>
+</div>
+{% endblock %}

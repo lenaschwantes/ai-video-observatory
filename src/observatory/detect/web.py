@@ -8,6 +8,7 @@ serve only the bundled example reports."""
 from __future__ import annotations
 
 import csv
+from functools import partial
 import html
 import json
 import os
@@ -23,12 +24,13 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from observatory.detect import i18n
 from observatory.detect.fetch import MAX_BYTES, VIDEO_SUFFIXES, FetchError, check_url
 from observatory.detect.models import Report
 from observatory.detect.pipeline import AI_THRESHOLD, HUMAN_THRESHOLD, analyze, analyze_file, load_report
-from observatory.detect.vision import PROVIDERS, assess_with
+from observatory.detect.vision import PROVIDERS, assess, assess_with
 
 ROOT = Path(__file__).resolve().parents[3]
 REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", "data/reports"))
@@ -39,8 +41,13 @@ ALLOW_LIVE = os.environ.get("ALLOW_LIVE", "1") != "0"
 PER_IP_DAILY = int(os.environ.get("LIVE_LIMIT_PER_IP", "3"))
 GLOBAL_DAILY = int(os.environ.get("LIVE_LIMIT_PER_DAY", "30"))
 ALLOW_BYOK = os.environ.get("ALLOW_BYOK", "1") != "0"
+# Uploads put arbitrary third-party video on the server: on by default for local
+# use, off in the Docker image (ALLOW_UPLOAD=0) so a public site does not host them.
+ALLOW_UPLOAD = os.environ.get("ALLOW_UPLOAD", "1") != "0"
 BYOK_PER_IP_DAILY = int(os.environ.get("BYOK_LIMIT_PER_IP", "20"))
 REPO_URL = "https://github.com/lenaschwantes/ai-video-observatory"
+# Absolute URL for link previews (og:url, og:image); falls back to the request host.
+PUBLIC_URL = os.environ.get("PUBLIC_URL", "")
 
 DISPLAY = {
     "groq": ("Qwen (Groq)", "vision"),
@@ -83,7 +90,9 @@ def render(request: Request, name: str, context: dict, status_code: int = 200) -
     response = templates.TemplateResponse(
         request,
         name,
-        {"lang": lang, "t": t, "note": lambda text: i18n.note(text, lang), "path": request.url.path, **context},
+        {"lang": lang, "t": t, "note": lambda text: i18n.note(text, lang),
+         "ev": lambda text: i18n.evidence(text, lang), "path": request.url.path,
+         "base_url": (PUBLIC_URL or str(request.base_url)).rstrip("/"), **context},
         status_code=status_code,
     )
     if request.query_params.get("lang") in i18n.LANGS:
@@ -99,7 +108,10 @@ def _within_limits(bucket: str, per_bucket: int = PER_IP_DAILY, count_global: bo
 
 
 def _recent(limit: int = 6) -> list[Report]:
+    """Public list on the home page. Uploaded files are private to whoever
+    holds the link, so they are never listed."""
     reports = [r for d in REPORTS_DIR.iterdir() if d.is_dir() and (r := load_report(REPORTS_DIR, d.name))]
+    reports = [r for r in reports if r.video.platform != "upload"]
     return sorted(reports, key=lambda r: r.analyzed_at, reverse=True)[:limit]
 
 
@@ -135,7 +147,10 @@ def benchmark_view() -> dict:
             "model": m["model"],
             "fpr": s["false_positive_rate"],
             "fpr_ci": s.get("false_positive_rate_ci"),
-            "fpr_count": (s["false_positives"], s["n_real"]) if s.get("n_real") else None,
+            # .get: a benchmarks.json written by an older version lacks the counts
+            "fpr_count": (s["false_positives"], s["n_real"]) if s.get("n_real") and "false_positives" in s else None,
+            "real_flagged": s.get("false_positives"),
+            "n_real": s.get("n_real"),
             "auc": s.get("auc"),
             "auc_ci": s.get("auc_ci"),
             "recall_zero_fp": s.get("recall_at_zero_fpr"),
@@ -174,13 +189,21 @@ def _home(request: Request, error: str | None = None, status_code: int = 200) ->
     return render(
         request,
         "index.html",
-        {"b": benchmark_view(), "reports": _recent(), "allow_live": ALLOW_LIVE, "allow_byok": ALLOW_BYOK,
+        {"b": benchmark_view(), "reports": _recent(), "allow_live": ALLOW_LIVE, "allow_byok": ALLOW_BYOK, "allow_upload": ALLOW_UPLOAD,
          "error": error, "limit": PER_IP_DAILY, "providers": PROVIDERS},
         status_code,
     )
 
 
 # --- routes ------------------------------------------------------------------
+
+
+@app.exception_handler(StarletteHTTPException)
+async def not_found(request: Request, exc: StarletteHTTPException):
+    """Friendly 404 page for people; JSON stays JSON for the API routes."""
+    if exc.status_code == 404 and not request.url.path.startswith(("/api/", "/jobs/", "/media/", "/static/")):
+        return render(request, "404.html", {}, status_code=404)
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -199,9 +222,9 @@ class BYOK:
     def __init__(self, provider: str, model: str, key: str):
         self.provider, self.model, self._key = provider, model, key
 
-    def assessor(self):
+    def assessor(self, language: str = "en"):
         def run(frames, frame_dir):
-            result, _ = assess_with(self.provider, self.model, frames, frame_dir, api_key=self._key)
+            result, _ = assess_with(self.provider, self.model, frames, frame_dir, api_key=self._key, language=language)
             result.summary = f"{result.summary} (model: {self.model}, visitor key)"
             return result
         return run
@@ -255,10 +278,15 @@ def _run(url: str, upload: Path | None, **kwargs) -> Report:
         shutil.rmtree(upload.parent, ignore_errors=True)
 
 
-def _start_job(url: str, byok: BYOK | None = None, upload: Path | None = None) -> str:
+def _assessor_for(byok: BYOK | None, language: str):
+    """The visual check in the visitor's language, on their key if they gave one."""
+    return byok.assessor(language) if byok else partial(assess, language=language)
+
+
+def _start_job(url: str, byok: BYOK | None = None, upload: Path | None = None, language: str = "en") -> str:
     job_id = uuid.uuid4().hex[:12]
     job = _jobs[job_id] = {"stage": "download", "slug": None, "error": None}
-    kwargs = {"assessor": byok.assessor()} if byok else {}
+    kwargs = {"assessor": _assessor_for(byok, language)}
 
     def work():
         try:
@@ -316,6 +344,9 @@ def run_analysis(
     if not ALLOW_LIVE and not (byok and ALLOW_BYOK):
         return fail(t("live_off"), 403)
     has_file = file is not None and bool(file.filename)
+    if has_file and not ALLOW_UPLOAD:
+        return fail("O envio de arquivos está desligado neste site; use um link." if pt
+                    else "File uploads are off on this site; use a link.", 403)
     if not has_file:
         try:
             url = check_url(url)
@@ -337,9 +368,9 @@ def run_analysis(
         except FetchError as exc:
             return fail(("Arquivo recusado: " if pt else "File rejected: ") + str(exc), 400)
     if htmx:
-        return _progress(request, _start_job(url, byok, upload))
+        return _progress(request, _start_job(url, byok, upload, _lang(request)))
     try:
-        report = _run(url, upload, **({"assessor": byok.assessor()} if byok else {}))
+        report = _run(url, upload, assessor=_assessor_for(byok, _lang(request)))
     except FetchError as exc:
         msg = str(exc)
         return fail(("Não foi possível baixar o vídeo: " if pt else "Could not download the video: ") + (byok.scrub(msg) if byok else msg)[:200], 422)
@@ -363,10 +394,23 @@ def show_report(request: Request, slug: str):
     if report is None:
         raise HTTPException(404, "report not found")
     duration = report.video.duration or max([e.timestamp or 0 for s in report.signals for e in s.evidence] + [1])
-    marks = [
-        {"t": e.timestamp, "pos": min(e.timestamp / duration, 1.0), "dir": e.direction.value, "text": e.text}
-        for s in report.signals for e in s.evidence if e.timestamp is not None
-    ]
+    lang = _lang(request)
+    # One mark per moment: clues at the same timestamp are grouped so dots never stack.
+    grouped: dict[float, list] = defaultdict(list)
+    for s in report.signals:
+        for e in s.evidence:
+            if e.timestamp is not None:
+                grouped[round(e.timestamp, 1)].append(e)
+    marks = []
+    for ts, items in sorted(grouped.items()):
+        dirs = {e.direction.value for e in items}
+        marks.append({
+            "t": ts,
+            "pos": min(ts / duration, 1.0),
+            "dir": "ai" if dirs == {"ai"} else "human" if dirs == {"human"} else ("mixed" if len(dirs) > 1 else dirs.pop()),
+            "n": len(items),
+            "texts": [i18n.evidence(e.text, lang) for e in items],
+        })
     return render(request, "report.html", {"r": report, "marks": marks, "duration": duration})
 
 

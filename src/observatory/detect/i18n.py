@@ -20,6 +20,15 @@ STRINGS: dict[str, dict[str, str]] = {
         "headline": "Detectores de vídeo de IA acusam vídeos reais?",
         "dek": "Ferramentas comerciais prometem mais de 98% de acerto, mas os números vêm dos próprios fabricantes. Aqui elas e modelos de IA de visão são testados nos mesmos vídeos rotulados, incluindo conteúdo brasileiro, e o erro que mais importa vem primeiro: chamar de IA um vídeo real.",
         "hero_caption": "dos vídeos reais foram chamados de IA por {name}, a ferramenta que mais acusou inocentes.",
+        "hero_count": "{k} de {n} vídeos reais",
+        "hero_caption_n": "dos vídeos reais ({k} de {n}) foram chamados de IA por {name}, a ferramenta que mais acusou inocentes.",
+        "cta_try": "Teste um vídeo ↓",
+        "show_more": "ver mais",
+        "show_less": "ver menos",
+        "clues": "{n} indícios",
+        "notfound_title": "Não encontramos esta página",
+        "notfound_body": "O link pode estar errado ou o relatório foi removido.",
+        "notfound_cta": "Voltar ao início",
         "hero_best": "A que menos errou: {name}, com {value}.",
         "pending_title": "Benchmark em andamento",
         "pending_body": "O conjunto de teste tem {videos} vídeos ({ai} de IA e {real} reais, {br} brasileiros). Os resultados aparecem aqui assim que a primeira rodada terminar.",
@@ -157,6 +166,15 @@ STRINGS: dict[str, dict[str, str]] = {
         "headline": "Do AI-video detectors accuse real videos?",
         "dek": "Commercial tools claim 98%+ accuracy, but the numbers come from the vendors. Here they and vision models are tested on the same labelled videos, Brazilian content included, and the error that matters most comes first: calling a real video AI.",
         "hero_caption": "of real videos were called AI by {name}, the tool that accused the most innocents.",
+        "hero_count": "{k} of {n} real videos",
+        "hero_caption_n": "of real videos ({k} of {n}) were called AI by {name}, the tool that accused the most innocents.",
+        "cta_try": "Test a video ↓",
+        "show_more": "show more",
+        "show_less": "show less",
+        "clues": "{n} clues",
+        "notfound_title": "We couldn't find this page",
+        "notfound_body": "The link may be wrong or the report was removed.",
+        "notfound_cta": "Back to the start",
         "hero_best": "Fewest errors: {name}, at {value}.",
         "pending_title": "Benchmark in progress",
         "pending_body": "The test set has {videos} videos ({ai} AI, {real} real, {br} Brazilian). Results appear here as soon as the first run finishes.",
@@ -295,6 +313,29 @@ NOTES_PT = {
     "The API did not return the field": "A API não retornou o campo para este vídeo.",
     "No frames could be extracted.": "Não foi possível extrair frames.",
 }
+
+
+# Evidence sentences written by the signal code (model findings are already in
+# the visitor's language). Prefix -> Portuguese template; {rest} keeps the tail.
+EVIDENCE_PT = [
+    ("Caption/tags say ", "Legenda/tags dizem {rest}"),
+    ("Mentions the generator ", "Cita o gerador {rest}"),
+    ('Mentions a "prompt"', 'Cita um "prompt"'),
+    ("C2PA manifest declares an AI/algorithmic digital source type", "As credenciais C2PA declaram origem gerada por IA"),
+    ("C2PA manifest declares a camera capture", "As credenciais C2PA declaram captura por câmera"),
+    ("C2PA manifest present but does not state the source type", "Há credenciais C2PA, mas sem o tipo de origem"),
+    ("The creator declared altered or synthetic content", "O criador declarou conteúdo alterado ou sintético"),
+    ("No synthetic-content declaration", "Sem declaração de conteúdo sintético (fraco: muitos criadores nunca declaram)"),
+]
+
+
+def evidence(text: str | None, lang: str) -> str | None:
+    if not text or lang != "pt":
+        return text
+    for prefix, template in EVIDENCE_PT:
+        if text.startswith(prefix):
+            return template.format(rest=text[len(prefix):])
+    return text
 
 
 def translator(lang: str):

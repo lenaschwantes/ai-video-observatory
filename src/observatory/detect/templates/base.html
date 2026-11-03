@@ -4,12 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ t('site_name') }}{% endblock %}</title>
-  <meta name="description" content="{{ t('dek') }}">
+  {% set page_desc %}{% block description %}{{ t('dek') }}{% endblock %}{% endset %}
+  <meta name="description" content="{{ page_desc | trim }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ t('site_name') }}">
+  <meta property="og:title" content="{{ self.title() | trim }}">
+  <meta property="og:description" content="{{ page_desc | trim }}">
+  <meta property="og:url" content="{{ base_url }}{{ path }}">
+  <meta property="og:image" content="{{ base_url }}/static/og-{{ lang }}.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="{{ 'pt_BR' if lang == 'pt' else 'en_US' }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <script>
-    // Apply a saved theme before paint so there is no flash.
+    // Mark JS as available (scroll reveals only hide content when JS can show it again),
+    // then apply a saved theme before paint so there is no flash.
+    document.documentElement.classList.add('js');
     try { const s = localStorage.getItem('theme'); if (s) document.documentElement.dataset.theme = s; } catch (e) {}
   </script>
   <style>
@@ -55,7 +69,8 @@
     .brand { font-family: var(--serif); font-weight: 600; font-size: 1.15rem; text-decoration: none; letter-spacing: -0.01em; white-space: nowrap; }
     .brand span { color: var(--accent); }
     nav.main { display: flex; gap: 20px; align-items: center; font-size: .9rem; }
-    nav.main a { text-decoration: none; color: var(--ink-2); }
+    nav.main a { text-decoration: none; color: var(--ink-2); padding: 12px 2px; }
+    .chip { min-height: 32px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; }
     nav.main a[aria-current="page"], nav.main a:hover { color: var(--ink); }
     .toggles { display: flex; gap: 6px; align-items: center; }
     .chip { border: 1px solid var(--grid); background: none; color: var(--ink-2); font: inherit; font-size: .78rem; padding: 3px 8px; border-radius: 999px; cursor: pointer; text-decoration: none; }
@@ -116,9 +131,14 @@
     .pill.likely_ai::before, .pill.ai::before { background: var(--ai); }
     .pill.likely_human::before, .pill.human::before { background: var(--human); }
 
-    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
-    .reveal.in { opacity: 1; transform: none; }
-    @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+    .js .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+    .js .reveal.in { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) { .js .reveal { opacity: 1; transform: none; transition: none; } }
+
+    /* one visible focus ring everywhere */
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .h3-look { font-size: 1.2rem; margin: 0 0 4px; }
 
     footer.site { border-top: 1px solid var(--grid); padding: 28px 0 48px; font-size: .85rem; color: var(--muted); }
   </style>

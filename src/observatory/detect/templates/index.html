@@ -32,8 +32,12 @@
     {% if b.ready %}
     <div class="hero-num reveal">
       <span class="value" data-countup data-value="{{ (b.worst.fpr * 100) | round | int }}" data-suffix="%">{{ (b.worst.fpr * 100) | round | int }}%</span>
-      <span class="caption">{{ t('hero_caption', name=b.worst.name) }}<br><span class="muted">{{ t('hero_best', name=b.best.name, value=((b.best.fpr * 100) | round | int | string) ~ '%') }}</span></span>
+      <span class="caption">
+        {% if b.worst.real_flagged is not none and b.worst.n_real %}{{ t('hero_caption_n', k=b.worst.real_flagged, n=b.worst.n_real, name=b.worst.name) }}{% else %}{{ t('hero_caption', name=b.worst.name) }}{% endif %}<br>
+        <span class="muted">{{ t('hero_best', name=b.best.name, value=((b.best.fpr * 100) | round | int | string) ~ '%') }}</span>
+      </span>
     </div>
+    <p style="margin:20px 0 0"><a class="btn" href="#analisar" style="text-decoration:none; display:inline-block">{{ t('cta_try') }}</a></p>
     <div class="reveal" style="margin-top:32px">{{ ranking(b, 'ranking-home') }}</div>
     <p style="margin-top:14px"><a href="/benchmarks">{{ t('see_ranking') }} →</a></p>
     {% else %}
@@ -66,9 +70,11 @@
             hx-post="/analyze" hx-encoding="multipart/form-data" hx-target="#analyze-status" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]">
         <input type="url" name="url" placeholder="{{ t('link_placeholder') }}" aria-label="{{ t('link_label') }}">
         <button class="btn" type="submit">{{ t('analyze_button') }}</button>
+        {% if allow_upload %}
         <label class="upload muted">{{ t('file_label') }}
           <input type="file" name="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.m4v,.webm,.mkv">
         </label>
+        {% endif %}
         <details class="byok" {% if not allow_live %}open{% endif %}>
           <summary>{{ t('byok_summary') }}</summary>
           <p class="muted" style="font-size:.88rem; margin:8px 0 12px">{{ t('byok_why') if allow_live else t('byok_required') }}</p>
@@ -111,13 +117,16 @@
     <h3 style="margin-top:40px">{{ t('recent_title') }}</h3>
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin-top:12px">
       {% for r in reports %}
-      <a href="/report/{{ r.slug }}" class="chart" style="text-decoration:none; padding:16px; display:block">
+      <a href="/report/{{ r.slug }}" class="chart" style="text-decoration:none; padding:0; display:block; overflow:hidden">
+        {% if r.frames %}<img src="/media/{{ r.slug }}/{{ r.frames[0].file }}" alt="" loading="lazy" style="display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-bottom:1px solid var(--ring)">{% endif %}
+        <div style="padding:14px 16px 16px">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px">
           <span class="pill {{ r.verdict.value }}">{{ t('verdict_' ~ r.verdict.value) }}</span>
           <strong style="font-size:1.4rem">{{ (r.probability * 100) | round | int }}%</strong>
         </div>
         <div style="margin-top:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.video.title or r.slug }}</div>
         <div class="muted" style="font-size:.8rem">{{ r.video.platform }}</div>
+        </div>
       </a>
       {% endfor %}
     </div>

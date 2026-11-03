@@ -3,7 +3,7 @@
 <figure class="chart" style="margin:0">
   <div class="chart-head">
     <div>
-      <h3 id="{{ chart_id }}-title">{{ t('chart_fpr_title') }}</h3>
+      <h2 class="h3-look" id="{{ chart_id }}-title">{{ t('chart_fpr_title') }}</h2>
       <p class="sub" id="{{ chart_id }}-sub" style="margin:0">{{ t('chart_fpr_sub') }}</p>
     </div>
     <div class="seg" role="group" aria-label="View" id="{{ chart_id }}-seg">
@@ -17,12 +17,17 @@
     <span><span class="swatch" style="background:var(--series-1)"></span>{{ t('region_global') }}</span>
   </div>
   <div id="{{ chart_id }}" style="width:100%"></div>
-  <noscript>
-    <table>
-      <thead><tr><th>{{ t('col_model') }}</th><th class="num">{{ t('col_fpr') }}</th><th class="num">AUC</th></tr></thead>
-      <tbody>{% for r in b.rows %}<tr><td>{{ r.name }}</td><td class="num">{{ (r.fpr * 100) | round | int }}%</td><td class="num">{{ '%.2f' | format(r.auc) if r.auc is not none else 'n/a' }}</td></tr>{% endfor %}</tbody>
-    </table>
-  </noscript>
+  {# The same numbers as a table, for when JS is off (with JS, each chart row is focusable and labelled). #}
+  <table class="ranking-table">
+    <caption class="sr-only">{{ t('chart_fpr_title') }}</caption>
+    <thead><tr><th scope="col">{{ t('col_model') }}</th><th scope="col" class="num">{{ t('col_fpr') }}</th><th scope="col" class="num">AUC</th>
+      {% if b.has_regions %}<th scope="col" class="num">{{ t('region_br') }}</th><th scope="col" class="num">{{ t('region_global') }}</th>{% endif %}</tr></thead>
+    <tbody>{% for r in b.rows %}<tr><th scope="row">{{ r.name }}</th>
+      <td class="num">{{ (r.fpr * 100) | round | int }}%{% if r.real_flagged is not none %} ({{ r.real_flagged }}/{{ r.n_real }}){% endif %}</td>
+      <td class="num">{{ '%.2f' | format(r.auc) if r.auc is not none else 'n/a' }}</td>
+      {% if b.has_regions %}<td class="num">{{ ((r.fpr_br * 100) | round | int ~ '%') if r.fpr_br is not none else 'n/a' }}</td><td class="num">{{ ((r.fpr_global * 100) | round | int ~ '%') if r.fpr_global is not none else 'n/a' }}</td>{% endif %}</tr>{% endfor %}</tbody>
+  </table>
+  <style>.js .ranking-table { display: none; } svg g.row:focus { outline: none; } svg g.row:focus-visible .hit { stroke: var(--accent); stroke-width: 2; rx: 6; }</style>
 </figure>
 <script type="application/json" id="{{ chart_id }}-data">{{ b.rows | tojson }}</script>
 <script>
