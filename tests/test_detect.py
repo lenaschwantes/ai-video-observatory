@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from observatory.detect.fetch import FetchError, check_url
+from observatory.detect.fetch import LOGIN_MESSAGE, FetchError, check_url, cookies_file, friendly_error
 from observatory.detect.models import Signal, Verdict, VideoInfo
 from observatory.detect.pipeline import analyze, combine
 from observatory.detect.signals import text_signal
@@ -71,6 +71,28 @@ def test_rejects_other_hosts(url):
 
 def test_accepts_supported_hosts():
     assert check_url(" https://www.tiktok.com/@a/video/1 ") == "https://www.tiktok.com/@a/video/1"
+
+
+@pytest.mark.parametrize("url", ["https://www.instagram.com/reel/C0abc123/", "https://instagram.com/p/C0abc123/"])
+def test_accepts_instagram(url):
+    assert check_url(url) == url
+
+
+def test_login_errors_become_clear_message():
+    raw = "ERROR: [Instagram] C0abc: Requested content is not available, rate-limit reached or login required"
+    assert friendly_error(raw) == LOGIN_MESSAGE
+    assert friendly_error("ERROR: Video unavailable") == "ERROR: Video unavailable"
+
+
+def test_cookies_file_only_when_it_exists(tmp_path, monkeypatch):
+    monkeypatch.delenv("YTDLP_COOKIES", raising=False)
+    assert cookies_file() is None
+    monkeypatch.setenv("YTDLP_COOKIES", str(tmp_path / "missing.txt"))
+    assert cookies_file() is None
+    jar = tmp_path / "cookies.txt"
+    jar.write_text("# Netscape HTTP Cookie File\n")
+    monkeypatch.setenv("YTDLP_COOKIES", str(jar))
+    assert cookies_file() == str(jar)
 
 
 # --- end to end with fakes ----------------------------------------------

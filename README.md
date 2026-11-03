@@ -69,6 +69,8 @@ The `Dockerfile` runs the web UI on port 7860 and works unchanged on Hugging Fac
 
 Visitors can also **bring their own key** (Groq, Anthropic, OpenAI or Gemini) in the analyzer form. The visual check then runs on their account, so live analysis stays available even with `ALLOW_LIVE=0`, under its own limit (`BYOK_LIMIT_PER_IP`, default 20/day; `ALLOW_BYOK=0` turns it off). The key is used for that one analysis and kept only in memory: it is never written to disk or logs, never returned in a response, and scrubbed from error messages (tested in `tests/test_web.py`). Serve the site over HTTPS.
 
+**Instagram** links work, but Instagram often demands a login even for public Reels, and blocks server IPs more than home ones. When it does, the analyzer says so plainly. To get past it, set `YTDLP_COOKIES` to a `cookies.txt` exported from a *secondary* account (accounts used this way can be blocked; `cookies*.txt` is git-ignored).
+
 Downloads from cloud servers are sometimes blocked by the platforms. When that happens the site says so; running locally always works.
 
 ## Design decisions
