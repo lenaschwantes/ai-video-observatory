@@ -64,6 +64,19 @@ Supported:
 
 The dataset has a Brazilian subset (`region=br`): AI clips by Brazilian creators (fake TV reports, church sketches, ads) paired with real local news, church services and vlogs, to test whether detectors do worse on content they were not built around. Runs resume after interruptions; `--retry-errors` re-runs failed rows. Every rate comes with a 95% interval (Wilson for rates, a seeded bootstrap for AUC): with a set this small, overlapping intervals mean two models are not shown to differ.
 
+### Running it for free
+
+Everything above runs on free tiers; it only takes longer. `--provider free` uses the providers that have one: Groq and Gemini (vision models), Sightengine and Hive via NVIDIA (detectors). Claude and OpenAI are paid and are skipped.
+
+```bash
+observatory bench run --provider free --pace 3        # 3 s between calls for per-minute limits
+observatory bench status                              # scored / failed / left per results file, tokens per call
+```
+
+When a provider's daily cap runs out, the run stops cleanly instead of filling the results with errors: nothing is written for the video it was on, and running the same command the next day continues from there. `bench status` shows tokens per call, so you can see how many videos fit in a day's quota. Gemini needs a model name in `GEMINI_VISION_MODEL`; pick one that AI Studio lists with a free tier.
+
+Suggested order, so each day adds a usable result: the main benchmark on Groq first, then the robustness run with `--limit 10` (`--variant all`), then the rest of the dataset.
+
 ### Robustness to re-compression
 
 Platforms re-encode every upload, and vendors never say what that does to their detectors. The benchmark re-encodes each video and scores every version on frames taken at the **same instants** (ffmpeg exact seek), so compression is the only difference:

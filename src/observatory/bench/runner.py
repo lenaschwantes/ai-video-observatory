@@ -102,10 +102,39 @@ def _read_jsonl(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+QUOTA_HINTS = ("per day", "daily", "tpd", "rpd", "perday", "quota", "resource_exhausted", "resource exhausted",
+               "rate limit", "rate_limit", "usage_limit", "too many requests")
+
+
+class QuotaReached(RuntimeError):
+    """The provider refused for rate or quota after its own retries. The run
+    stops without recording the row, so the next run picks it up."""
+
+
+def is_quota_error(exc: BaseException) -> bool:
+    """429s and quota messages, across SDKs: Groq/OpenAI (status_code),
+    google-genai (code / RESOURCE_EXHAUSTED), plain HTTP errors from httpx."""
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    response = getattr(exc, "response", None)
+    status = status or getattr(response, "status_code", None)
+    text = str(exc).lower()
+    return status == 429 or re.search(r"\b429\b", text) is not None or any(h in text for h in QUOTA_HINTS)
+
+
 def run(provider: str, model: str, rows: list[dict], cache: Path = CACHE, results: Path = RESULTS,
-        retry_errors: bool = False, assess_with=None, variant: str | None = None, repeat: int = 1) -> Path:
+        retry_errors: bool = False, assess_with=None, variant: str | None = None, repeat: int = 1,
+        pace: float = 0.0, sleep=None) -> Path:
     """`variant` reads frames from eval/cache/<id>@<variant>; `repeat` > 1 runs
-    the same frames again into a separate file (the noise floor)."""
+    the same frames again into a separate file (the noise floor).
+
+    Free tiers: `pace` waits that many seconds between calls (per-minute
+    limits). When the provider still answers 429 or "quota" after its own
+    retries (usually a daily cap), the run stops cleanly and raises
+    QuotaReached; nothing is written for that row, so running the same
+    command later resumes exactly there."""
+    import time
+
+    sleep = sleep or time.sleep
     if assess_with is None:
         from observatory.detect.vision import assess_with
 
@@ -117,27 +146,53 @@ def run(provider: str, model: str, rows: list[dict], cache: Path = CACHE, result
         previous = [r for r in previous if not r.get("error")]
         path.write_text("".join(json.dumps(r) + "\n" for r in previous), encoding="utf-8")
 
-    for row in rows:
-        if row["id"] in done:
-            continue
+    todo = [r for r in rows if r["id"] not in done]
+    first = True
+    for n, row in enumerate(todo, 1):
         key = f"{row['id']}@{variant}" if variant else row["id"]
         frames = load_frames(key, cache)
         if not frames:
             continue
         record = {"id": row["id"], "label": row["label"], "provider": provider, "model": model,
                   "variant": variant, "repeat": repeat, "run_at": datetime.now(timezone.utc).isoformat()}
+        if pace and not first:
+            sleep(pace)
+        first = False
         try:
             result, usage = assess_with(provider, model, frames, cache / key)
             record |= {"p": result.ai_likelihood, "findings": len(result.findings), "summary": result.summary,
                        "input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens,
                        "calls": usage.calls, "seconds": round(usage.seconds, 2), "error": None}
-            print(f"[{row['label']:>4}] {row['id']} p={result.ai_likelihood:.2f}")
+            print(f"[{row['label']:>4}] {row['id']} p={result.ai_likelihood:.2f}  ({n}/{len(todo)})")
         except Exception as exc:
+            if is_quota_error(exc):
+                left = len(todo) - n + 1
+                raise QuotaReached(f"{provider}: rate limit or quota reached with {left} video(s) left; "
+                                   f"progress is saved, run the same command later to continue") from exc
             record |= {"p": None, "error": f"{type(exc).__name__}: {exc}"[:300]}
             print(f"[fail] {row['id']}: {record['error']}")
         with path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record) + "\n")
     return path
+
+
+def status(rows: list[dict], results: Path = RESULTS) -> list[dict]:
+    """Progress of every results file against the dataset: scored, failed,
+    still to run, and average tokens per call (to plan a daily free quota)."""
+    ids = {r["id"] for r in rows}
+    out = []
+    for p in sorted(results.glob("*.jsonl")):
+        recs = [r for r in _read_jsonl(p) if r["id"] in ids]
+        ok = [r for r in recs if r.get("p") is not None]
+        tokens = [r.get("input_tokens", 0) + r.get("output_tokens", 0) for r in ok]
+        out.append({
+            "file": p.stem,
+            "scored": len(ok),
+            "failed": len(recs) - len(ok),
+            "left": len(ids) - len({r["id"] for r in recs}),
+            "tokens_per_call": round(sum(tokens) / len(tokens)) if tokens and any(tokens) else None,
+        })
+    return out
 
 
 def _subset_scores(labels, probs, ok, keep) -> dict | None:
