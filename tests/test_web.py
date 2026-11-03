@@ -201,3 +201,10 @@ def test_benchmarks_page_shows_recompression_table(client, tmp_path, monkeypatch
     assert "E depois que a plataforma recomprime?" in page
     assert "720p-crf35" in page and "SSIM 0.91" in page and "0% → 50%" in page
     assert "AUC 0.81" in page
+
+
+def test_byok_form_explains_free_keys_and_that_the_model_matters(client):
+    page = client.get("/?lang=pt").text
+    assert "https://console.groq.com/keys" in page and "https://aistudio.google.com/apikey" in page
+    assert "O modelo muda o resultado" in page and 'href="/benchmarks"' in page
+    assert "The model changes the result" in client.get("/?lang=en").text

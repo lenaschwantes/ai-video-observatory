@@ -13,6 +13,10 @@
   .byok-grid .wide { grid-column: 1 / -1; }
   .byok-grid label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--muted); }
   form.analyze .byok-grid input, form.analyze .byok-grid select { flex: none; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--axis); background: var(--page); color: var(--ink); font: inherit; font-size: .95rem; }
+  form.analyze .byok-help { font-size: .86rem; margin: 0 0 12px; }
+  form.analyze .byok-help p { margin: 4px 0; }
+  form.analyze .byok-help ul { margin: 4px 0 6px; padding-left: 20px; }
+  form.analyze .byok-help .byok-note { border-left: 3px solid var(--accent); padding: 6px 10px; background: var(--surface); border-radius: 4px; }
   form.analyze label.upload { flex-basis: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .9rem; }
   form.analyze label.upload input { flex: 1 1 200px; padding: 8px; border-style: dashed; font-size: .9rem; }
   @media (max-width: 520px) { .byok-grid { grid-template-columns: 1fr; } }
@@ -68,6 +72,15 @@
         <details class="byok" {% if not allow_live %}open{% endif %}>
           <summary>{{ t('byok_summary') }}</summary>
           <p class="muted" style="font-size:.88rem; margin:8px 0 12px">{{ t('byok_why') if allow_live else t('byok_required') }}</p>
+          <div class="byok-help">
+            <p><strong>{{ t('byok_free_title') }}:</strong></p>
+            <ul>
+              <li><strong>Groq</strong>: {{ t('byok_free_groq') }} <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">console.groq.com/keys</a>.</li>
+              <li><strong>Google Gemini</strong>: {{ t('byok_free_gemini') }} <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> {{ t('byok_free_gemini_model') }}</li>
+            </ul>
+            <p class="muted">{{ t('byok_free_limits') }}</p>
+            <p class="byok-note">⚠️ {{ t('byok_model_matters') }} <a href="/benchmarks">{{ t('byok_model_matters_link') }}</a>.</p>
+          </div>
           <div class="byok-grid">
             <label>{{ t('byok_provider') }}
               <select name="key_provider" id="key-provider">
