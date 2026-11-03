@@ -21,3 +21,6 @@ eval/cache/
 
 # yt-dlp login cookies
 cookies*.txt
+
+# static export for GitHub Pages (built in CI)
+site/
