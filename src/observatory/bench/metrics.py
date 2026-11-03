@@ -128,3 +128,82 @@ def score(labels: list[int], probs: list[float]) -> Scores:
         auc_ci=auc_ci(labels, probs),
         recall_at_zero_fpr=recall_at_zero_fpr(labels, probs),
     )
+
+
+# --- paired comparisons (same videos, two conditions) ---------------------
+
+VERDICT_RANK = {"likely_human": 0, "inconclusive": 1, "likely_ai": 2}
+
+
+def verdict(p: float) -> str:
+    return "likely_ai" if p >= AI_THRESHOLD else "likely_human" if p <= HUMAN_THRESHOLD else "inconclusive"
+
+
+@dataclass
+class Flips:
+    n: int
+    flipped: int  # verdict changed
+    toward_ai: int  # e.g. inconclusive -> likely AI, likely human -> inconclusive
+    toward_real: int
+
+    @property
+    def rate(self) -> float | None:
+        return self.flipped / self.n if self.n else None
+
+
+def flips(before: dict[str, float], after: dict[str, float]) -> Flips:
+    """Verdict changes between two runs over the videos present in both."""
+    ids = sorted(before.keys() & after.keys())
+    up = down = 0
+    for i in ids:
+        d = VERDICT_RANK[verdict(after[i])] - VERDICT_RANK[verdict(before[i])]
+        up += d > 0
+        down += d < 0
+    return Flips(n=len(ids), flipped=up + down, toward_ai=up, toward_real=down)
+
+
+def mcnemar_exact(toward_ai: int, toward_real: int) -> float | None:
+    """Two-sided exact McNemar p-value: are changes in one direction more
+    common than chance would give if the condition pushed neither way?"""
+    n = toward_ai + toward_real
+    if n == 0:
+        return None
+    k = min(toward_ai, toward_real)
+    tail = sum(math.comb(n, i) for i in range(k + 1)) / 2**n
+    return min(1.0, 2 * tail)
+
+
+def fpr_at(labels: list[int], probs: list[float], threshold: float = AI_THRESHOLD) -> float | None:
+    real = [p for y, p in zip(labels, probs) if y == 0]
+    return sum(p >= threshold for p in real) / len(real) if real else None
+
+
+def paired_delta(labels: list[int], before: list[float], after: list[float], metric,
+                 reps: int = 1000, seed: int = 0) -> tuple[float | None, tuple[float, float] | None]:
+    """metric(after) - metric(before), with a 95% paired bootstrap interval:
+    each replicate resamples videos (AI and real separately) and keeps every
+    video's two scores together, so per-video difficulty cancels out."""
+    point_a, point_b = metric(labels, after), metric(labels, before)
+    if point_a is None or point_b is None:
+        return None, None
+    pos = [i for i, y in enumerate(labels) if y == 1]
+    neg = [i for i, y in enumerate(labels) if y == 0]
+    rng = random.Random(seed)
+    stats = []
+    for _ in range(reps):
+        idx = (rng.choices(pos, k=len(pos)) if pos else []) + (rng.choices(neg, k=len(neg)) if neg else [])
+        ls = [labels[i] for i in idx]
+        a, b = metric(ls, [after[i] for i in idx]), metric(ls, [before[i] for i in idx])
+        if a is not None and b is not None:
+            stats.append(a - b)
+    if not stats:
+        return round(point_a - point_b, 4), None
+    stats.sort()
+    k = len(stats)
+    return round(point_a - point_b, 4), (round(stats[int(0.025 * k)], 4), round(stats[max(int(0.975 * k) - 1, 0)], 4))
+
+
+def mean_shift(labels: list[int], before: list[float], after: list[float], cls: int) -> float | None:
+    """Average change in score for one class (0 = real, 1 = AI)."""
+    d = [a - b for y, a, b in zip(labels, after, before) if y == cls]
+    return round(sum(d) / len(d), 4) if d else None

@@ -51,12 +51,45 @@
     </div>
   </section>
 
+  {% if b.robustness %}
+  <section class="block reveal">
+    <h2>{{ t('rob_title') }}</h2>
+    <p class="muted" style="max-width:68ch">{{ t('rob_body') }}</p>
+    <div class="table-wrap" style="margin-top:16px">
+      <table>
+        <thead><tr>
+          <th>{{ t('col_model') }}</th><th>{{ t('rob_version') }}</th>
+          <th class="num">{{ t('rob_quality') }}</th>
+          <th class="num">{{ t('col_fpr') }}</th>
+          <th class="num">{{ t('rob_flips') }}</th><th class="num">{{ t('rob_noise') }}</th>
+          <th class="num">{{ t('rob_direction') }}</th>
+        </tr></thead>
+        <tbody>
+        {% for r in b.robustness %}
+          <tr>
+            <td><strong>{{ r.name }}</strong> <span class="muted" style="font-size:.8rem"><code>{{ r.model }}</code></span></td>
+            <td><code>{{ r.variant }}</code></td>
+            <td class="num">{% if r.ssim is not none %}SSIM {{ '%.2f' | format(r.ssim) }}{% else %}n/a{% endif %}{% if r.bitrate_ratio is not none %}<br><span class="ci muted">{{ pct(r.bitrate_ratio) }} {{ t('rob_of_bitrate') }}</span>{% endif %}</td>
+            <td class="num">{{ pct(r.fpr_ref) }} → {{ pct(r.fpr) }}{% if r.fpr_delta_ci %}<br><span class="ci muted">Δ {{ pct(r.fpr_delta_ci[0]) }}…{{ pct(r.fpr_delta_ci[1]) }}</span>{% endif %}</td>
+            <td class="num">{{ pct(r.flip_rate) }} <span class="muted">(n={{ r.n }})</span></td>
+            <td class="num">{{ pct(r.noise_flip_rate) }}</td>
+            <td class="num">{{ r.toward_ai }} ↑ / {{ r.toward_real }} ↓{% if r.mcnemar_p is not none %}<br><span class="ci muted">p={{ '%.3f' | format(r.mcnemar_p) }}</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:.88rem; max-width:68ch">{{ t('rob_read') }}</p>
+  </section>
+  {% endif %}
+
   <section class="block reveal prose">
     <h2>{{ t('caveats_title') }}</h2>
     <ul class="muted">
       <li>{{ t('caveat_1') }}</li>
       <li>{{ t('caveat_2') }}</li>
       <li>{{ t('caveat_ci') }}</li>
+      {% if b.leakage and b.leakage.height %}<li>{{ t('caveat_leak', auc=num(b.leakage.height.auc)) }}</li>{% endif %}
     </ul>
     <p><a href="/metodo">{{ t('method_title') }} →</a> · <a href="{{ repo_url }}/blob/main/docs/benchmarks.md">{{ t('full_report') }}</a></p>
     {% endif %}

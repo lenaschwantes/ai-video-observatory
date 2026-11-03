@@ -162,6 +162,11 @@ def benchmark_view() -> dict:
         "worst": by_fpr[0],
         "best": by_fpr[-1],
         "has_regions": any(r["fpr_br"] is not None and r["fpr_global"] is not None for r in rows),
+        "robustness": [
+            {**r, "name": DISPLAY.get(r["provider"], (r["provider"], "vision"))[0]}
+            for r in data.get("robustness") or []
+        ],
+        "leakage": data.get("leakage") or {},
     }
 
 
