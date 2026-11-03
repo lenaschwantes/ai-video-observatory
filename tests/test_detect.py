@@ -109,3 +109,30 @@ def test_cached_report_is_reused(tmp_path):
     analyze("u", tmp_path, fetcher=fake_fetch, assessor=fake_assess)
     analyze("u", tmp_path, fetcher=fake_fetch, assessor=fake_assess)
     assert len(calls) == 1
+
+
+# --- vision providers ----------------------------------------------------
+
+
+def test_merge_averages_batches_in_log_odds_and_keeps_all_findings():
+    from observatory.detect.vision import merge
+
+    a = VisualAssessment(ai_likelihood=0.9, findings=[Finding(frame_index=0, observation="x", direction="ai")], summary="a")
+    b = VisualAssessment(ai_likelihood=0.5, findings=[Finding(frame_index=3, observation="y", direction="neutral")], summary="b")
+    merged = merge([a, b])
+    assert 0.7 < merged.ai_likelihood < 0.9
+    assert [f.frame_index for f in merged.findings] == [0, 3]
+
+
+def test_provider_prefers_groq_then_anthropic(monkeypatch):
+    from observatory.detect.vision import provider
+
+    for var in ("VISION_PROVIDER", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+    assert provider() is None
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    assert provider() == "anthropic"
+    monkeypatch.setenv("GROQ_API_KEY", "y")
+    assert provider() == "groq"
+    monkeypatch.setenv("VISION_PROVIDER", "anthropic")
+    assert provider() == "anthropic"

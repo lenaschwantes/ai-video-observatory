@@ -13,7 +13,7 @@ Detecting AI video is unreliable when it rests on one signal: platforms strip me
 | **Platform AI label** | YouTube's `containsSyntheticMedia` declaration via the Data API | Strong when present, often absent |
 | **Content credentials** | C2PA manifest in the file (`c2pa-python`): AI vs camera digital source type | Very strong, usually stripped on re-encode |
 | **Caption and tags** | Explicit statements ("made with AI", `#aigenerated`) and generator names | Weak to medium, cheap |
-| **Visual analysis** | Keyframes (one per scene, PySceneDetect) inspected by a multimodal model that must cite frame-level evidence | Medium, explains itself |
+| **Visual analysis** | Keyframes (one per scene, PySceneDetect) inspected by a multimodal model that must cite frame-level evidence. Runs on Groq (open-weight vision model, free tier; frames sent in batches of 3) or Claude | Medium, explains itself |
 
 Each signal contributes a log-likelihood ratio. They are summed into a probability, and the verdict is *likely AI* above 75%, *likely not AI* below 25%, and *inconclusive* in between or when nothing informative was found.
 
@@ -34,17 +34,17 @@ Dancing robot #aiart
 ```bash
 python -m venv .venv && .venv/Scripts/activate   # source .venv/bin/activate on macOS/Linux
 pip install -e ".[detect,dev]"
-cp .env.example .env                              # add ANTHROPIC_API_KEY for the visual signal
+cp .env.example .env                              # add GROQ_API_KEY (or ANTHROPIC_API_KEY) for the visual signal
 
 observatory analyze "https://www.youtube.com/shorts/<id>"   # command line
 observatory serve                                            # web UI at http://127.0.0.1:8000
 ```
 
-Without an API key the visual signal is skipped and the other three still run.
+Without a key the visual signal is skipped and the other three still run.
 
 ## Deploy
 
-The `Dockerfile` runs the web UI on port 7860 and works unchanged on Hugging Face Spaces (Docker SDK), Render or Fly. Set `ANTHROPIC_API_KEY` as a secret. Every public analysis costs a model call, so live analysis is rate limited (`LIVE_LIMIT_PER_IP`, `LIVE_LIMIT_PER_DAY`) and can be switched off with `ALLOW_LIVE=0`, in which case the site serves the reports in `examples/reports/`.
+The `Dockerfile` runs the web UI on port 7860 and works unchanged on Hugging Face Spaces (Docker SDK), Render or Fly. Set `GROQ_API_KEY` (or `ANTHROPIC_API_KEY`) as a secret. Every public analysis costs a model call, so live analysis is rate limited (`LIVE_LIMIT_PER_IP`, `LIVE_LIMIT_PER_DAY`) and can be switched off with `ALLOW_LIVE=0`, in which case the site serves the reports in `examples/reports/`.
 
 Downloads from cloud servers are sometimes blocked by the platforms. When that happens the site says so; running locally always works.
 
