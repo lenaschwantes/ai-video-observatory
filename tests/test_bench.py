@@ -73,7 +73,7 @@ def test_run_resumes_and_report_writes_docs(tmp_path):
     def fake(provider, model, frames, frame_dir):
         calls.append(frame_dir.name)
         if frame_dir.name == "r2":
-            raise RuntimeError("rate limited")
+            raise RuntimeError("model returned JSON outside the contract")
         p = 0.9 if frame_dir.name == "a1" else 0.1
         return VisualAssessment(ai_likelihood=p, findings=[], summary=""), Usage(100, 20, 1, 0.5)
 
@@ -109,3 +109,53 @@ def test_detector_scores_frames_and_merges(tmp_path, monkeypatch):
     result, usage = detectors.assess_with("sightengine", "genai", frames, tmp_path)
     assert 0.6 < result.ai_likelihood < 0.9 and usage.calls == 2
     assert [f.direction for f in result.findings] == ["ai", "neutral"]
+
+
+# --- free tiers: pacing, quota stop, status ----------------------------------
+
+
+class _RateLimited(Exception):
+    status_code = 429
+
+
+@pytest.mark.parametrize("exc", [
+    _RateLimited("slow down"),
+    RuntimeError("Rate limit reached for model in organization on tokens per day (TPD): Limit 500000"),
+    RuntimeError("429 RESOURCE_EXHAUSTED. {'error': {'code': 429}}"),
+    RuntimeError("sightengine: {'type': 'usage_limit', 'message': 'Daily usage limit reached'}"),
+])
+def test_quota_errors_are_recognised(exc):
+    assert runner.is_quota_error(exc)
+
+
+@pytest.mark.parametrize("exc", [RuntimeError("model returned JSON outside the contract"), ValueError("frame 4290 missing")])
+def test_other_errors_are_not_quota(exc):
+    assert not runner.is_quota_error(exc)
+
+
+def test_run_stops_on_quota_without_recording_and_resumes(tmp_path):
+    rows = [{"id": f"v{i}", "label": "ai" if i % 2 else "real", "height": "1080"} for i in range(4)]
+    for r in rows:
+        _cache(tmp_path, r["id"])
+    calls, sleeps, budget = [], [], {"left": 2}
+
+    def fake(provider, model, frames, frame_dir):
+        if budget["left"] == 0:
+            raise RuntimeError("Rate limit reached ... tokens per day (TPD)")
+        budget["left"] -= 1
+        calls.append(frame_dir.name)
+        return VisualAssessment(ai_likelihood=0.5, findings=[], summary=""), Usage(100, 20, 1, 0.5)
+
+    kw = dict(cache=tmp_path / "cache", results=tmp_path / "results", assess_with=fake, pace=3, sleep=sleeps.append)
+    with pytest.raises(runner.QuotaReached, match="2 video"):
+        runner.run("groq", "m", rows, **kw)
+    path = runner.results_path("groq", "m", tmp_path / "results")
+    assert [json.loads(l)["id"] for l in path.read_text().splitlines()] == ["v0", "v1"]  # no error rows
+    assert sleeps == [3, 3]  # paced between calls, not before the first
+
+    budget["left"] = 10  # next day
+    runner.run("groq", "m", rows, **kw)
+    assert calls == ["v0", "v1", "v2", "v3"]
+
+    (st,) = runner.status(rows, tmp_path / "results")
+    assert (st["scored"], st["failed"], st["left"], st["tokens_per_call"]) == (4, 0, 0, 120)

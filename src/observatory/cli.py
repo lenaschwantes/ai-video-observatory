@@ -79,6 +79,9 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+FREE_PROVIDERS = ("groq", "gemini", "sightengine", "hive")
+
+
 def cmd_bench(args: argparse.Namespace) -> int:
     import observatory.detect  # noqa: F401  (loads .env)
     from observatory.bench import runner
@@ -115,7 +118,13 @@ def cmd_bench(args: argparse.Namespace) -> int:
         else:
             plan = [(None, 1)]
 
-        names = [*PROVIDERS, *detectors.DETECTORS] if args.provider == "all" else [args.provider]
+        if args.provider == "all":
+            names = [*PROVIDERS, *detectors.DETECTORS]
+        elif args.provider == "free":  # providers with a free tier; Claude and OpenAI are paid
+            names = [*FREE_PROVIDERS]
+        else:
+            names = [args.provider]
+        stopped = []
         for name in names:
             if name in detectors.DETECTORS:
                 if not detectors.has_keys(name):
@@ -124,8 +133,13 @@ def cmd_bench(args: argparse.Namespace) -> int:
                 model = {"sightengine": "genai", "hive": "ai-generated-image-detection"}[name]
                 for variant, repeat in plan:
                     print(f"== {name} / {model}" + (f" @ {variant}" if variant else "") + (f" (run {repeat})" if repeat > 1 else ""))
-                    runner.run(name, model, rows, retry_errors=args.retry_errors, assess_with=detectors.assess_with,
-                               variant=variant, repeat=repeat)
+                    try:
+                        runner.run(name, model, rows, retry_errors=args.retry_errors, assess_with=detectors.assess_with,
+                                   variant=variant, repeat=repeat, pace=args.pace)
+                    except runner.QuotaReached as exc:
+                        print(f"[stop] {exc}")
+                        stopped.append(name)
+                        break
                 continue
             model = args.model or model_for(name)
             if not has_key(name) or not model:
@@ -134,7 +148,19 @@ def cmd_bench(args: argparse.Namespace) -> int:
                 continue
             for variant, repeat in plan:
                 print(f"== {name} / {model}" + (f" @ {variant}" if variant else "") + (f" (run {repeat})" if repeat > 1 else ""))
-                runner.run(name, model, rows, retry_errors=args.retry_errors, variant=variant, repeat=repeat)
+                try:
+                    runner.run(name, model, rows, retry_errors=args.retry_errors, variant=variant, repeat=repeat,
+                               pace=args.pace)
+                except runner.QuotaReached as exc:
+                    print(f"[stop] {exc}")
+                    stopped.append(name)
+                    break  # the next versions would hit the same cap
+        if stopped:
+            print(f"stopped early: {', '.join(stopped)}. Run the same command later (e.g. tomorrow) to resume.")
+    elif args.step == "status":
+        print(f"{'results file':<48}{'scored':>7}{'failed':>7}{'left':>6}{'tokens/call':>13}")
+        for s in runner.status(rows):
+            print(f"{s['file']:<48}{s['scored']:>7}{s['failed']:>7}{s['left']:>6}{s['tokens_per_call'] or '':>13}")
     else:
         for m in runner.report(rows):
             s = m["scores"] or {}
@@ -179,8 +205,9 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_analyze)
 
     p = sub.add_parser("bench", help="benchmark the visual signal across vision models")
-    p.add_argument("step", choices=["prepare", "run", "report"])
-    p.add_argument("--provider", default="all", help="groq, anthropic, openai, gemini, sightengine, hive or all")
+    p.add_argument("step", choices=["prepare", "run", "report", "status"])
+    p.add_argument("--provider", default="all",
+                   help="groq, anthropic, openai, gemini, sightengine, hive, all, or free (groq, gemini, sightengine, hive)")
     p.add_argument("--model", help="override the provider's model")
     p.add_argument("--limit", type=int, help="only the first N dataset rows (smoke test)")
     p.add_argument("--retry-errors", action="store_true", help="re-run rows that failed before")
@@ -188,6 +215,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--variants", help="prepare: re-encoded versions to build (comma list, or all)")
     p.add_argument("--variant", help="run: score a re-encoded version (ref, crf28, 720p-crf35, or all)")
     p.add_argument("--repeat", type=int, default=1, help="run: run number, for the noise floor (ref twice)")
+    p.add_argument("--pace", type=float, default=0.0,
+                   help="run: seconds between calls, for free tiers' per-minute limits (e.g. 3)")
     p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("serve", help="run the web front end")
