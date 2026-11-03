@@ -1,87 +1,103 @@
 # AI Video Observatory
 
-A daily data pipeline that tracks AI-generated videos trending on TikTok, classifies them (which tool made it, format, hook, niche) and flags trends **while they are still emerging**, before they peak.
+**Paste a video link, get an estimate of whether it was AI-generated, with the evidence behind it.**
 
-> Status: phase 1 (pipeline skeleton running end to end on synthetic data). See the roadmap below.
+Detecting AI video is unreliable when it rests on one signal: platforms strip metadata, watermark removers are a click away, and detection models fall behind every new generator. This project combines several independent signals, shows what each one found and says *inconclusive* when they disagree, instead of guessing.
 
-## Why
+> Status: **v0, working.** The weights are hand-set and not yet calibrated; see the roadmap. Treat results as a triage aid, never as proof.
 
-AI video formats rise and die in days. By the time a format is obvious on your feed, it has already peaked. This project treats the trending feed as a time series: it snapshots the same videos every day, measures how fast each hashtag gains views and raises a flag when a tag breaks away from its own recent baseline.
+## What it checks
 
-## Architecture
+| Signal | How | Strength |
+|---|---|---|
+| **Platform AI label** | YouTube's `containsSyntheticMedia` declaration via the Data API | Strong when present, often absent |
+| **Content credentials** | C2PA manifest in the file (`c2pa-python`): AI vs camera digital source type | Very strong, usually stripped on re-encode |
+| **Caption and tags** | Explicit statements ("made with AI", `#aigenerated`) and generator names | Weak to medium, cheap |
+| **Visual analysis** | Keyframes (one per scene, PySceneDetect) inspected by a multimodal model that must cite frame-level evidence | Medium, explains itself |
 
-```mermaid
-flowchart LR
-    subgraph Sources["Sources (swappable)"]
-        A[TikTok-Api<br/>live]
-        B[Fixtures<br/>replay]
-    end
-    A -- fails? --> B
-    A & B --> R[(Bronze<br/>raw JSONL<br/>dt=YYYY-MM-DD)]
-    R -. bad rows .-> Q[(_rejected)]
-    R --> S[dbt: stg_video_snapshots<br/>dedup + contract]
-    S --> F[fct_video_daily<br/>views gained per day]
-    F --> M[mart_hashtag_daily]
-    M --> T[Trend detection<br/>robust z-score]
-    F --> C[Classifier<br/>phase 3]
-    T & C --> D[Dashboard + weekly brief<br/>phase 5]
+Each signal contributes a log-likelihood ratio. They are summed into a probability, and the verdict is *likely AI* above 75%, *likely not AI* below 25%, and *inconclusive* in between or when nothing informative was found.
+
+Example output:
+
 ```
+Dancing robot #aiart
+94% -> likely_ai
+  [    n/a] Content credentials (C2PA): No content credentials in the file. Common: platforms strip them on re-encode.
+  [     ai] Title, caption and tags
+            - (ai) Caption/tags say "#aiart"
+  [     ai] Visual analysis of keyframes: Typical generator artifacts.
+            - (ai) @1.5s Robot's hand merges into the wall
+```
+
+## Run it
+
+```bash
+python -m venv .venv && .venv/Scripts/activate   # source .venv/bin/activate on macOS/Linux
+pip install -e ".[detect,dev]"
+cp .env.example .env                              # add ANTHROPIC_API_KEY for the visual signal
+
+observatory analyze "https://www.youtube.com/shorts/<id>"   # command line
+observatory serve                                            # web UI at http://127.0.0.1:8000
+```
+
+Without an API key the visual signal is skipped and the other three still run.
+
+## Deploy
+
+The `Dockerfile` runs the web UI on port 7860 and works unchanged on Hugging Face Spaces (Docker SDK), Render or Fly. Set `ANTHROPIC_API_KEY` as a secret. Every public analysis costs a model call, so live analysis is rate limited (`LIVE_LIMIT_PER_IP`, `LIVE_LIMIT_PER_DAY`) and can be switched off with `ALLOW_LIVE=0`, in which case the site serves the reports in `examples/reports/`.
+
+Downloads from cloud servers are sometimes blocked by the platforms. When that happens the site says so; running locally always works.
 
 ## Design decisions
 
 | Decision | Why |
 |---|---|
-| **Every source behind one interface** (`fetch` + `normalize`) | Unofficial TikTok access breaks often. A broken collector is swapped or falls back to the next one in the list without touching the rest of the pipeline. |
-| **Raw payload stored next to the normalized row** | If the mapping changes, history is reprocessed from bronze without collecting again. |
-| **Daily snapshots, never overwritten** | Velocity (views gained per day) only exists if yesterday's numbers are kept. |
-| **Contract violations are quarantined, not dropped** | Rows that fail the Pydantic contract land in `_rejected/` with the error, so data loss is visible and countable. |
-| **Idempotent writes** | Re-running a day replaces that day's file atomically. Backfills and retries are safe. |
-| **Data tests in dbt** | Uniqueness, non-negative metrics, monotonic views and a volume-collapse check run on every build. |
-| **Robust statistics** | Median/MAD instead of mean/std, so one viral outlier in the baseline does not hide the next breakout. |
-| **Synthetic fixtures** | Tests, CI and the demo run without TikTok, and no real user data lives in the repo. |
+| **Several weak signals, not one model** | Each signal fails differently. Combining them, and showing each one, beats a single black-box score. |
+| **"Inconclusive" is a first-class answer** | A false "AI" verdict harms a real creator. The thresholds keep the tool quiet when evidence is thin. |
+| **Evidence must point at a frame** | The visual check returns findings tied to a frame index and timestamp, and those frames are kept in the report. |
+| **The model's confidence is shrunk** | Its log-odds are multiplied by 0.8, so an uncalibrated judge cannot dominate the stronger signals. |
+| **Videos are deleted after analysis** | Only the report and the frames cited as evidence are kept. |
+| **Reports are cached by video** | Re-analyzing the same link costs nothing and returns the same answer. |
 
-## Quickstart
+## Also in this repository: the trend pipeline
+
+The analyzer grew out of a daily pipeline that tracks AI video hashtags and flags breakouts. It is kept because the analyzer will run on it at scale (see roadmap).
+
+- Swappable collectors with fallback, raw payloads landed next to normalized rows, contract violations quarantined (`src/observatory/sources`, `ingest.py`).
+- dbt + DuckDB warehouse with data tests for duplicates, decreasing counters and volume collapse (`transform/`).
+- Robust z-score (median/MAD) detection of emerging hashtags (`trends.py`).
+- 14 days of synthetic fixtures with one hidden breakout; CI fails if the pipeline does not find it.
 
 ```bash
-python -m venv .venv && .venv/Scripts/activate   # source .venv/bin/activate on macOS/Linux
-pip install -e ".[dev]"
-
-# 1. land 14 days of synthetic data
 observatory ingest --sources fixture --start 2026-10-01 --end 2026-10-14
-
-# 2. build and test the warehouse (DuckDB file at data/observatory.duckdb)
 dbt build --project-dir transform --profiles-dir transform
-
-# 3. which hashtags are breaking out on the latest day?
 observatory trends
 ```
 
-The synthetic data hides one story: `#aiasmr` is a minor tag until 2026-10-13 and then takes off. Step 3 finds it with a score of ~56. It also flags `#runway` and `#aiart`, and that is a real limitation worth knowing: about 90% of their gain that day comes from videos that are also tagged `#aiasmr`. Tags that ride along with a breakout inherit it. Phase 4 addresses this by scoring each tag on the views it gains *without* the breaking tag.
+Live TikTok collection through the unofficial client is currently blocked by bot detection, and TikTok's Research API only admits Brazilian institutions for youth-safety studies, so the pipeline runs on fixtures for now.
 
-To collect live data instead: `pip install -e ".[tiktok]"`, `python -m playwright install`, then `observatory ingest` (defaults to `tiktokapi`, falling back to `fixture`).
+## Roadmap
+
+- [x] **v0, analyzer**: four signals, combination with an inconclusive band, CLI, web UI, Docker.
+- [ ] **v1, trustworthy**: hand-labelled evaluation set (Label Studio) plus a public benchmark (GenVidBench); fit the signal weights; calibration curve; publish accuracy and where it fails.
+- [ ] **v1, honest uncertainty**: conformal prediction (MAPIE) so "inconclusive" comes with a guaranteed error rate.
+- [ ] **v2, robustness**: run the evaluation set through public watermark and metadata removers and report how much accuracy drops; add a specialised detector model (e.g. Veritas) as a fifth signal.
+- [ ] **v2, labelling audit**: run the analyzer over many videos and measure how much AI content reaches viewers without a label.
 
 ## Project layout
 
 ```
-src/observatory/
-  models.py          data contracts (VideoSnapshot, VideoLabels)
-  sources/           one adapter per collector
-  ingest.py          bronze layer with fallback and quarantine
-  trends.py          emerging-trend detection
-  cli.py             `observatory ingest | trends`
-transform/           dbt project (staging -> facts -> marts, data tests)
-fixtures/            synthetic payloads, regenerated by scripts/make_fixtures.py
-tests/               pytest
+src/observatory/detect/   analyzer: fetch, frames, signals, vision, pipeline, web
+src/observatory/          trend pipeline: sources, ingest, trends, cli
+transform/                dbt project
+tests/                    pytest (no network, no API calls)
+Dockerfile                web deployment
 ```
 
-## Roadmap
+## Ethics
 
-- [x] **Phase 1, skeleton**: swappable sources, bronze layer, dbt models and data tests, baseline trend detection, CI.
-- [ ] **Phase 2, live collection**: scheduled daily run (orchestrator with retries and alerts), second live source as fallback, collection health metrics.
-- [ ] **Phase 3, classification**: multimodal model labels each video against `VideoLabels`; a hand-labelled evaluation set measures agreement (Cohen's kappa) before any label is trusted.
-- [ ] **Phase 4, better detection**: change-point detection and a forecast baseline, co-occurrence correction for ride-along tags; backtest how many days before the peak each method fires.
-- [ ] **Phase 5, outputs**: public dashboard on GitHub Pages and an automated weekly brief of emerging formats.
+Only public videos are analyzed, on request, one at a time. Nothing is redistributed, the video file is deleted after analysis, and every report carries a disclaimer. The tool is meant to prioritise human review, not to accuse anyone.
 
-## Data and ethics
+## License
 
-Only public, aggregate signals are used (counts, hashtags, captions). No personal data beyond public handles is stored, nothing is redistributed, and the repository itself ships synthetic data only. Live collection uses an unofficial client: respect the platform's terms and rate limits.
+MIT

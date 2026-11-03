@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AI Video Observatory{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f7f7f5; --surface: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --border: #e3e3e0;
+      --ai: #c2410c; --ai-bg: #fff1e8; --human: #15803d; --human-bg: #ecfdf3; --neutral: #57534e; --neutral-bg: #f1f0ee;
+      --accent: #3730a3;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111113; --surface: #1b1b1f; --text: #ededf0; --muted: #a0a0a8; --border: #2c2c32;
+        --ai: #fb923c; --ai-bg: #2a1a10; --human: #4ade80; --human-bg: #0f2418; --neutral: #c4c0bb; --neutral-bg: #222226;
+        --accent: #a5b4fc;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+    a { color: var(--accent); }
+    h1 { font-size: 1.9rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+    h2 { font-size: 1.15rem; margin: 32px 0 12px; }
+    .muted { color: var(--muted); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    form.analyze { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+    form.analyze input { flex: 1 1 320px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 1rem; }
+    form.analyze button { padding: 12px 20px; border: 0; border-radius: 10px; background: var(--accent); color: var(--bg); font-weight: 600; font-size: 1rem; cursor: pointer; }
+    form.analyze button[disabled] { opacity: .6; cursor: progress; }
+    .error { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--ai-bg); color: var(--ai); }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .82rem; font-weight: 600; }
+    .likely_ai, .ai { background: var(--ai-bg); color: var(--ai); }
+    .likely_human, .human { background: var(--human-bg); color: var(--human); }
+    .inconclusive, .neutral { background: var(--neutral-bg); color: var(--neutral); }
+    ul.reports { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+    ul.reports a { display: flex; justify-content: space-between; gap: 12px; align-items: center; text-decoration: none; color: inherit; }
+    ul.reports .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    footer { margin-top: 48px; font-size: .85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  {% block content %}{% endblock %}
+  <footer>
+    Open source: <a href="https://github.com/lenaschwantes/ai-video-observatory">github.com/lenaschwantes/ai-video-observatory</a>.
+    Automated estimates, not proof. Videos are deleted after analysis.
+  </footer>
+</main>
+</body>
+</html>

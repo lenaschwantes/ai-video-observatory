@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Is this video AI-generated?</h1>
+<p class="muted">Paste a public YouTube, TikTok or Instagram link. The analyzer combines the platform label, content credentials, the caption and a frame-by-frame visual check, and shows the evidence behind its estimate.</p>
+
+{% if allow_live %}
+<form class="analyze" method="post" action="/analyze" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Analyzing… (up to a minute)';">
+  <input type="url" name="url" required placeholder="https://www.youtube.com/shorts/…" aria-label="Video link">
+  <button type="submit">Analyze</button>
+</form>
+<p class="muted" style="font-size:.85rem">Limited to {{ limit }} analyses per visitor per day.</p>
+{% else %}
+<div class="card" style="margin-top:20px">Live analysis is off on this deployment. Browse the example reports below, or run it locally from the repository.</div>
+{% endif %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<h2>Reports</h2>
+{% if reports %}
+<ul class="reports">
+  {% for r in reports %}
+  <li class="card"><a href="/report/{{ r.slug }}">
+    <span class="title">{{ r.video.title or r.slug }} <span class="muted">· {{ r.video.platform }}</span></span>
+    <span class="pill {{ r.verdict.value }}">{{ (r.probability * 100) | round | int }}% · {{ verdict_text[r.verdict.value] }}</span>
+  </a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">No reports yet.</p>
+{% endif %}
+{% endblock %}

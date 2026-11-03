@@ -54,6 +54,34 @@ def cmd_trends(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_analyze(args: argparse.Namespace) -> int:
+    from observatory.detect import analyze
+    from observatory.detect.fetch import FetchError
+
+    try:
+        report = analyze(args.url, Path(args.reports_dir), refresh=args.refresh)
+    except FetchError as exc:
+        print(f"[fail] {exc}", file=sys.stderr)
+        return 1
+    print(f"{report.video.title or report.slug}")
+    print(f"{report.probability:.0%} -> {report.verdict.value}")
+    for s in report.signals:
+        state = s.direction.value if s.available else "n/a"
+        print(f"  [{state:>7}] {s.label}: {s.note or ''}")
+        for e in s.evidence:
+            when = f" @{e.timestamp:.1f}s" if e.timestamp is not None else ""
+            print(f"            - ({e.direction.value}){when} {e.text}")
+    print(f"report: {Path(args.reports_dir) / report.slug / 'report.json'}")
+    return 0
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    import uvicorn
+
+    uvicorn.run("observatory.detect.web:app", host=args.host, port=args.port)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="observatory")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -71,6 +99,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--window", type=int, default=7)
     p.add_argument("--threshold", type=float, default=3.5)
     p.set_defaults(func=cmd_trends)
+
+    p = sub.add_parser("analyze", help="estimate whether one video is AI-generated, with evidence")
+    p.add_argument("url")
+    p.add_argument("--reports-dir", default="data/reports")
+    p.add_argument("--refresh", action="store_true", help="re-run even if a report exists")
+    p.set_defaults(func=cmd_analyze)
+
+    p = sub.add_parser("serve", help="run the web front end")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.set_defaults(func=cmd_serve)
 
     args = parser.parse_args(argv)
     return args.func(args)

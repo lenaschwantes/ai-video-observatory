@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ r.video.title or r.slug }} · AI Video Observatory{% endblock %}
+{% block content %}
+<p><a href="/">← Analyze another video</a></p>
+<h1>{{ r.video.title or r.slug }}</h1>
+<p class="muted">{{ r.video.platform }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %} · <a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">original</a></p>
+
+<div class="card" style="display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-top:16px">
+  <div style="font-size:3rem; font-weight:700; line-height:1">{{ (r.probability * 100) | round | int }}%</div>
+  <div>
+    <span class="pill {{ r.verdict.value }}">{{ verdict_text[r.verdict.value] }}</span>
+    <p class="muted" style="margin:6px 0 0">estimated probability of AI generation</p>
+  </div>
+</div>
+
+<h2>Evidence</h2>
+<div style="display:grid; gap:12px">
+{% for s in r.signals %}
+  <section class="card">
+    <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap">
+      <strong>{{ s.label }}</strong>
+      {% if s.available %}<span class="pill {{ s.direction.value }}">{% if s.direction.value == 'ai' %}points to AI{% elif s.direction.value == 'human' %}points to human{% else %}neutral{% endif %}</span>
+      {% else %}<span class="pill neutral">not available</span>{% endif %}
+    </div>
+    {% if s.note %}<p class="muted" style="margin:8px 0 0">{{ s.note }}</p>{% endif %}
+    {% if s.evidence %}
+    <ul style="margin:10px 0 0; padding-left:18px">
+      {% for e in s.evidence %}
+      <li style="margin-bottom:10px">
+        <span class="pill {{ e.direction.value }}" style="font-size:.72rem">{{ e.direction.value }}</span>
+        {% if e.timestamp is not none %}<span class="muted">{{ '%.1f' | format(e.timestamp) }}s</span>{% endif %}
+        {{ e.text }}
+        {% if e.frame %}<br><img src="/media/{{ r.slug }}/{{ e.frame }}" alt="Frame at {{ e.timestamp }}s" loading="lazy" style="max-width:100%; width:320px; border-radius:8px; margin-top:6px">{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+{% endfor %}
+</div>
+
+<p class="muted" style="margin-top:24px; font-size:.9rem">{{ r.disclaimer }}<br>Method {{ r.method_version }} · analyzed {{ r.analyzed_at.strftime('%Y-%m-%d %H:%M UTC') }} · <a href="/api/report/{{ r.slug }}">JSON</a></p>
+{% endblock %}
