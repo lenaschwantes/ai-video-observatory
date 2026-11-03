@@ -23,12 +23,13 @@
 
   <section class="block reveal">
     <h2>{{ t('table_title') }}</h2>
+    <style>.ci { font-size: .75rem; white-space: nowrap; }</style>
     <div class="table-wrap" style="margin-top:16px">
       <table>
         <thead><tr>
           <th>{{ t('col_model') }}</th>
           <th class="num">{{ t('col_fpr') }}</th><th class="num">{{ t('col_auc') }}</th>
-          <th class="num">{{ t('col_recall') }}</th><th class="num">{{ t('col_missed') }}</th>
+          <th class="num">{{ t('col_recall') }}</th><th class="num">{{ t('col_recall_zero_fp') }}</th><th class="num">{{ t('col_missed') }}</th>
           <th class="num">{{ t('col_inconclusive') }}</th><th class="num">{{ t('col_ece') }}</th>
           <th class="num">{{ t('col_speed') }}</th><th class="num">{{ t('col_cost') }}</th><th class="num">{{ t('col_failures') }}</th>
         </tr></thead>
@@ -36,8 +37,9 @@
         {% for r in b.rows %}
           <tr>
             <td><strong>{{ r.name }}</strong> <span class="muted" style="font-size:.8rem">{{ t('kind_' ~ r.kind) }} · <code>{{ r.model }}</code></span></td>
-            <td class="num">{{ pct(r.fpr) }}</td><td class="num">{{ num(r.auc) }}</td>
-            <td class="num">{{ pct(r.recall) }}</td><td class="num">{{ pct(r.missed) }}</td>
+            <td class="num">{{ pct(r.fpr) }}{% if r.fpr_count %} <span class="muted">({{ r.fpr_count[0] }}/{{ r.fpr_count[1] }})</span>{% endif %}{% if r.fpr_ci %}<br><span class="ci muted">{{ pct(r.fpr_ci[0]) }}–{{ pct(r.fpr_ci[1]) }}</span>{% endif %}</td>
+            <td class="num">{{ num(r.auc) }}{% if r.auc_ci %}<br><span class="ci muted">{{ num(r.auc_ci[0]) }}–{{ num(r.auc_ci[1]) }}</span>{% endif %}</td>
+            <td class="num">{{ pct(r.recall) }}</td><td class="num">{{ pct(r.recall_zero_fp) }}</td><td class="num">{{ pct(r.missed) }}</td>
             <td class="num">{{ pct(r.inconclusive) }}</td><td class="num">{{ num(r.ece) }}</td>
             <td class="num">{{ r.seconds if r.seconds is not none else 'n/a' }}</td>
             <td class="num">{% if r.cost is not none %}${{ '%.2f' | format(r.cost) }}{% else %}n/a{% endif %}</td>
@@ -54,6 +56,7 @@
     <ul class="muted">
       <li>{{ t('caveat_1') }}</li>
       <li>{{ t('caveat_2') }}</li>
+      <li>{{ t('caveat_ci') }}</li>
     </ul>
     <p><a href="/metodo">{{ t('method_title') }} →</a> · <a href="{{ repo_url }}/blob/main/docs/benchmarks.md">{{ t('full_report') }}</a></p>
     {% endif %}
