@@ -30,6 +30,7 @@ detect = [
     "python-multipart>=0.0.9",
 ]
 bench = ["openai>=1.50", "google-genai>=1.0"]
+eval = ["deepeval>=3.0"]
 dev = ["pytest>=8"]
 
 [project.scripts]
