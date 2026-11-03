@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from observatory.detect.fetch import LOGIN_MESSAGE, FetchError, check_url, cookies_file, friendly_error
+from observatory.detect.fetch import LOGIN_MESSAGE, FetchError, check_url, cookies_file, fetch_local, friendly_error
 from observatory.detect.models import Signal, Verdict, VideoInfo
 from observatory.detect.pipeline import analyze, combine
 from observatory.detect.signals import text_signal
@@ -73,8 +73,9 @@ def test_accepts_supported_hosts():
     assert check_url(" https://www.tiktok.com/@a/video/1 ") == "https://www.tiktok.com/@a/video/1"
 
 
-@pytest.mark.parametrize("url", ["https://www.instagram.com/reel/C0abc123/", "https://instagram.com/p/C0abc123/"])
-def test_accepts_instagram(url):
+@pytest.mark.parametrize("url", ["https://www.instagram.com/reel/C0abc123/", "https://instagram.com/p/C0abc123/",
+                                 "https://x.com/user/status/123", "https://twitter.com/user/status/123"])
+def test_accepts_instagram_and_x(url):
     assert check_url(url) == url
 
 
@@ -166,3 +167,25 @@ def test_provider_prefers_groq_then_anthropic(monkeypatch):
     assert provider() == "groq"
     monkeypatch.setenv("VISION_PROVIDER", "anthropic")
     assert provider() == "anthropic"
+
+
+# --- local files ---------------------------------------------------------
+
+
+def test_fetch_local_hashes_content(tmp_path):
+    a, b = tmp_path / "a.mp4", tmp_path / "b.MP4"
+    a.write_bytes(b"same bytes")
+    b.write_bytes(b"same bytes")
+    meta_a, path = fetch_local(a)
+    meta_b, _ = fetch_local(b)
+    assert path == a and meta_a.platform == "upload" and meta_a.url == ""
+    assert meta_a.video_id == meta_b.video_id  # same content -> same cached report
+    assert meta_a.title == "a.mp4"
+
+
+@pytest.mark.parametrize("name", ["notes.txt", "missing.mp4"])
+def test_fetch_local_rejects_bad_files(tmp_path, name):
+    if name.endswith(".txt"):
+        (tmp_path / name).write_text("x")
+    with pytest.raises(FetchError):
+        fetch_local(tmp_path / name)

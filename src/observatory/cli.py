@@ -57,9 +57,13 @@ def cmd_trends(args: argparse.Namespace) -> int:
 def cmd_analyze(args: argparse.Namespace) -> int:
     from observatory.detect import analyze
     from observatory.detect.fetch import FetchError
+    from observatory.detect.pipeline import analyze_file
 
     try:
-        report = analyze(args.url, Path(args.reports_dir), refresh=args.refresh)
+        if Path(args.url).is_file():
+            report = analyze_file(Path(args.url), Path(args.reports_dir), refresh=args.refresh)
+        else:
+            report = analyze(args.url, Path(args.reports_dir), refresh=args.refresh)
     except FetchError as exc:
         print(f"[fail] {exc}", file=sys.stderr)
         return 1
@@ -140,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_trends)
 
     p = sub.add_parser("analyze", help="estimate whether one video is AI-generated, with evidence")
-    p.add_argument("url")
+    p.add_argument("url", help="video link, or the path of a local video file")
     p.add_argument("--reports-dir", default="data/reports")
     p.add_argument("--refresh", action="store_true", help="re-run even if a report exists")
     p.set_defaults(func=cmd_analyze)
