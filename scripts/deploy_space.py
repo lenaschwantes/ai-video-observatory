@@ -64,7 +64,10 @@ def main() -> None:
         return
 
     api = HfApi()
-    api.create_repo(args.space, repo_type="space", space_sdk="docker", private=args.private, exist_ok=True)
+    # free CPU explicitly: some accounts default new Spaces to ZeroGPU, which
+    # only runs Gradio apps and cannot be downgraded later without PRO
+    api.create_repo(args.space, repo_type="space", space_sdk="docker", space_hardware="cpu-basic",
+                    private=args.private, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         card = Path(tmp) / "README.md"
         card.write_text(SPACE_CARD, encoding="utf-8")
