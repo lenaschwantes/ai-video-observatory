@@ -1,0 +1,162 @@
+{
+  "slug": "youtube-weizh2jfsnw",
+  "video": {
+    "url": "https://www.youtube.com/watch?v=WeIzH2jFsNw",
+    "platform": "youtube",
+    "video_id": "WeIzH2jFsNw",
+    "title": "Video created with Google's Veo 3!",
+    "description": "From video production to dev workflows with new AI-powered tools in Google Workspace\n\nCheck out Google AI Ultra for Business, a new Workspace add-on that's ideal for creatives, developers, and researchers who demand more from AI. It includes access to Flow, the revolutionary AI filmmaking tool we showcased at Google I/O, which empowers creatives to bring their visions to life with unprecedented ease. Creatives also get access to Whisk, our new AI image and video generation tool, as well as higher usage limits of Veo 3 in the Gemini app.\n\nTry Google Workspace with Gemini → http://goo.gle/3TNuJl8\n\nWhat is Google Workspace → http://goo.gle/4kh3r1o\nSet up Google Workspace → http://goo.gle/40oMVFs\n\nSubscribe to Google Workspace → https://goo.gle/GoogleWorkspace\nFollow Google Workspace on X → http://goo.gle/4lsDrRJ\nFollow Google Workspace on Facebook → http://goo.gle/4l37KhY\nFollow Google Workspace on LinkedIn → http://goo.gle/4nnKiO3\nFollow Google Workspace on Instagram → http://goo.gle/3TSf0kJ\nFollow Google Workspace on TikTok → http://goo.gle/3GjYVRO\nFollow Google Workspace on Threads → http://goo.gle/4kjS1tP\n\n#GoogleWorkspace \n#GoogleWorkspaceWithGemini",
+    "tags": [
+      "Gemini",
+      "Veo 3",
+      "Google Vids",
+      "Google Workspace",
+      "How to",
+      "Google",
+      "Enterprise",
+      "Tutorials",
+      "Tips",
+      "yt:cc=on",
+      "cc_lang_pref=en"
+    ],
+    "uploader": "Google Workspace",
+    "duration": 32.0
+  },
+  "analyzed_at": "2026-11-03T18:07:05.644809Z",
+  "probability": 0.84,
+  "verdict": "likely_ai",
+  "signals": [
+    {
+      "name": "platform_label",
+      "label": "Platform AI label",
+      "available": false,
+      "llr": 0.0,
+      "evidence": [],
+      "note": "Set YOUTUBE_API_KEY to read it."
+    },
+    {
+      "name": "provenance",
+      "label": "Content credentials (C2PA)",
+      "available": false,
+      "llr": 0.0,
+      "evidence": [],
+      "note": "No content credentials in the file. Common: platforms strip them on re-encode."
+    },
+    {
+      "name": "text",
+      "label": "Title, caption and tags",
+      "available": true,
+      "llr": 0.8,
+      "evidence": [
+        {
+          "text": "Mentions the generator \"veo\"",
+          "direction": "ai",
+          "timestamp": null,
+          "frame": null
+        }
+      ],
+      "note": null
+    },
+    {
+      "name": "visual",
+      "label": "Visual analysis of keyframes",
+      "available": true,
+      "llr": 0.8593808295514507,
+      "evidence": [
+        {
+          "text": "The top half is a landscape view of a frying pan spelling 'YUMMO' in butter, while the bottom half abruptly crops and shifts the view of the same scene, showing a fragment of the letters. This disjointed layout with two different camera angles of the 'same' scene in a single frame is a known generator error.",
+          "direction": "ai",
+          "timestamp": 0.46,
+          "frame": "frame_00.jpg"
+        },
+        {
+          "text": "Similar to the previous frame, this is split into a landscape view of a tree stump and a vertical view of the same stump. The perspective and vertical timeline of a single video clip do not match the disjointed spatial layout shown.",
+          "direction": "ai",
+          "timestamp": 3.23,
+          "frame": "frame_01.jpg"
+        },
+        {
+          "text": "The frame displays a vertical shot of an aluminum-foil dinosaur next to a horizontal shot of the same dinosaur. The background object, a can of Whiskas 'i mini' cat food, is present in the top landscape frame but missing in the bottom vertical frame, indicating inconsistent scene context typical of AI generation.",
+          "direction": "ai",
+          "timestamp": 6.73,
+          "frame": "frame_02.jpg"
+        },
+        {
+          "text": "The 'GEMINI' logo on the popcorn machine is sharp, detailed, and legible, even at the small scale in the full frame. The machine's glass reflects the dim theater lighting realistically, and the popcorn texture is natural and dense without individual kernels melting together.",
+          "direction": "human",
+          "timestamp": 10.25,
+          "frame": "frame_03.jpg"
+        },
+        {
+          "text": "The cursive stencil 'gemini' on the car door is consistent in shape and legibility between the full and detail views. The wheel spokes and the contours of the car body are clean without 'melting' artifacts, and the palm trees in the background look distinct rather than smeared.",
+          "direction": "neutral",
+          "timestamp": 14.08,
+          "frame": "frame_04.jpg"
+        },
+        {
+          "text": "Inflatable letter rafts spelling 'GEMINI' float in the water. In the detail view, the spacing and rendering of the last letters 'N I' appear slightly less crisp and more 'blob-like' compared to the clear letters 'G E M', which is a minor artifact sometimes seen in AI generation, though the water and waterfall physics are very realistic.",
+          "direction": "neutral",
+          "timestamp": 17.83,
+          "frame": "frame_05.jpg"
+        },
+        {
+          "text": "Close-up of a clock face that exhibits slight text distortion ('GEMINI' is slightly squashed) and has a peculiarly smooth, plastic-like texture on the hands and metallic bezel, characteristic of AI rendering rather than a physical photograph. ",
+          "direction": "ai",
+          "timestamp": 21.48,
+          "frame": "frame_06.jpg"
+        },
+        {
+          "text": "The transition from the clock in frame 6 to a red Nokia phone in frame 7 is a complete scene and object change. The phone itself has a high-gloss, plastic sheen rather than realistic paint, and the surface it sits on has smudge-like textures that look like a blurry AI interpretation of a wooden table or track. ",
+          "direction": "ai",
+          "timestamp": 25.04,
+          "frame": "frame_07.jpg"
+        }
+      ],
+      "note": "Each frame contains two distinct viewports of the same scene arranged vertically, which is a characteristic structural artifact of AI video generation where temporal frames are collaged or the camera path is entirely incoherent. The video shows strong physical consistency and legible text across distinct scenes, which suggests a real recording or high-quality live-action. Only the floating letters in the final frame show very slight rendering oddities, but the weight of evidence is toward a human source. The video displays a high likelihood of being AI-generated, characterized by a disjointed object morph or scene cut between frames, plastic-like material rendering on physical objects (clock, phone), and a lack of consistent environmental lighting. (model: qwen/qwen3.8-27b)"
+    }
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "timestamp": 0.46,
+      "file": "frame_00.jpg"
+    },
+    {
+      "index": 1,
+      "timestamp": 3.23,
+      "file": "frame_01.jpg"
+    },
+    {
+      "index": 2,
+      "timestamp": 6.73,
+      "file": "frame_02.jpg"
+    },
+    {
+      "index": 3,
+      "timestamp": 10.25,
+      "file": "frame_03.jpg"
+    },
+    {
+      "index": 4,
+      "timestamp": 14.08,
+      "file": "frame_04.jpg"
+    },
+    {
+      "index": 5,
+      "timestamp": 17.83,
+      "file": "frame_05.jpg"
+    },
+    {
+      "index": 6,
+      "timestamp": 21.48,
+      "file": "frame_06.jpg"
+    },
+    {
+      "index": 7,
+      "timestamp": 25.04,
+      "file": "frame_07.jpg"
+    }
+  ],
+  "method_version": "v0-heuristic",
+  "disclaimer": "Automated estimate, not proof. Weights are provisional until calibrated on a labelled set; use it to prioritise human review, never to accuse a creator."
+}

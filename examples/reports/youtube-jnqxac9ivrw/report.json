@@ -1,0 +1,125 @@
+{
+  "slug": "youtube-jnqxac9ivrw",
+  "video": {
+    "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "platform": "youtube",
+    "video_id": "jNQXAC9IVRw",
+    "title": "Me at the zoo",
+    "description": "Microplastics are accumulating in human brains at an alarming rate\nhttps://www.youtube.com/watch?v=0PT5c1z3LL8\n\n“Nanoplastics and Human Health” with Matthew J Campen, PhD, MSPH\nhttps://www.youtube.com/watch?v=RRBN_4L09Mg\n\n00:00 Intro\n00:05 The cool thing\n00:17 End",
+    "tags": [
+      "me at the zoo",
+      "jawed karim",
+      "first youtube video"
+    ],
+    "uploader": "jawed",
+    "duration": 19.0
+  },
+  "analyzed_at": "2026-11-03T17:18:48.388517Z",
+  "probability": 0.675,
+  "verdict": "inconclusive",
+  "signals": [
+    {
+      "name": "platform_label",
+      "label": "Platform AI label",
+      "available": false,
+      "llr": 0.0,
+      "evidence": [],
+      "note": "Set YOUTUBE_API_KEY to read it."
+    },
+    {
+      "name": "provenance",
+      "label": "Content credentials (C2PA)",
+      "available": false,
+      "llr": 0.0,
+      "evidence": [],
+      "note": "No content credentials in the file. Common: platforms strip them on re-encode."
+    },
+    {
+      "name": "text",
+      "label": "Title, caption and tags",
+      "available": true,
+      "llr": 0.0,
+      "evidence": [],
+      "note": "No AI-related wording found. Absence is weak evidence: most AI videos say nothing."
+    },
+    {
+      "name": "visual",
+      "label": "Visual analysis of keyframes",
+      "available": true,
+      "llr": 0.729323130785193,
+      "evidence": [
+        {
+          "text": "The elephant in the background exhibits a smooth, waxy texture consistent with AI generation. Its tusks and legs appear somewhat malformed and poorly integrated with the fence structure.",
+          "direction": "ai",
+          "timestamp": 1.58,
+          "frame": "frame_00.jpg"
+        },
+        {
+          "text": "A distinct, non-photorealistic object (resembling a bird or toy) hovering in the air behind the subject's head. The background elements, particularly the fence posts, appear to warp and change shape between frames compared to frame 0.",
+          "direction": "ai",
+          "timestamp": 4.73,
+          "frame": "frame_01.jpg"
+        },
+        {
+          "text": "The top of the subject's head appears 'mushy' and merges unnaturally with the cluttered background elements (fence/hay). The lighting on the face is inconsistent with the flat, overcast background.",
+          "direction": "ai",
+          "timestamp": 7.89,
+          "frame": "frame_02.jpg"
+        },
+        {
+          "text": "The subject's hand is raised in a gesture but appears somewhat flattened and gestural rather than highly detailed. There is a strong horizontal seam artifact across the background where the rock wall meets the white area, which looks like a tiling or generation artifact.",
+          "direction": "ai",
+          "timestamp": 11.04,
+          "frame": "frame_03.jpg"
+        },
+        {
+          "text": "The face has a smooth, 'waxy' texture typical of GAN-based generators. The background details of the metal bars and rock wall remain consistent with the previous frame despite the subject's movement, which is a good sign for realness, but the lighting on the face is quite flat.",
+          "direction": "ai",
+          "timestamp": 14.2,
+          "frame": "frame_04.jpg"
+        },
+        {
+          "text": "The image quality here is very low with heavy compression or blurring, suggesting this might be a source video or the generator is struggling with detail. The hand in the foreground is partially cut off and has indistinct fingers.",
+          "direction": "neutral",
+          "timestamp": 17.36,
+          "frame": "frame_05.jpg"
+        }
+      ],
+      "note": "The video displays strong indicators of AI generation, including morphing background timelines, 'floating' objects, and impossible organic merging where the subject's hair blends into the background fence. The video exhibits classic 'waxy' skin textures and occasional structural blurring typical of AI video generation, but the background elements and general motion are coherent enough that it could also be a low-quality recording of a real person. (model: qwen/qwen3.8-27b)"
+    }
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "timestamp": 1.58,
+      "file": "frame_00.jpg"
+    },
+    {
+      "index": 1,
+      "timestamp": 4.73,
+      "file": "frame_01.jpg"
+    },
+    {
+      "index": 2,
+      "timestamp": 7.89,
+      "file": "frame_02.jpg"
+    },
+    {
+      "index": 3,
+      "timestamp": 11.04,
+      "file": "frame_03.jpg"
+    },
+    {
+      "index": 4,
+      "timestamp": 14.2,
+      "file": "frame_04.jpg"
+    },
+    {
+      "index": 5,
+      "timestamp": 17.36,
+      "file": "frame_05.jpg"
+    }
+  ],
+  "method_version": "v0-heuristic",
+  "disclaimer": "Automated estimate, not proof. Weights are provisional until calibrated on a labelled set; use it to prioritise human review, never to accuse a creator."
+}

@@ -57,7 +57,10 @@ def test_key_check_validates_input_and_is_rate_limited(client, monkeypatch):
 def test_home_puts_the_check_first_in_plain_language(client, monkeypatch):
     monkeypatch.setattr(web, "host_provider", lambda: "groq")
     page = client.get("/?lang=pt").text
-    assert page.index("Esse vídeo foi feito com IA?") < page.index('id="video-url"') < page.index('<h2 class="center">Como funciona')
+    assert page.index("Esse vídeo foi feito com IA?") < page.index('id="video-url"') < page.index('class="example"') < page.index("<h2>Como funciona")
+    # the hero shows what a result looks like, with real clues, before anyone types
+    assert "Exemplo de resultado" in page and "84%" in page and "texto no relógio" in page
+    assert page.count("<svg") >= 3
     assert "Verificar vídeo" in page and "Primeiro vídeo do YouTube (2005)" in page
     # technical paths stay available, folded away
     assert '<details class="advanced"' in page and 'id="key-check"' in page and "kernels/welcome?src=" in page
@@ -113,3 +116,26 @@ def test_kaggle_notebook_report_cell_renders_a_report(tmp_path):
                 sys.modules[k] = v
     html = shown[0]
     assert "90%" in html and "&lt;merges&gt;" in html and "&lt;b&gt;t&lt;/b&gt;" in html  # escaped
+
+
+def test_report_embeds_only_valid_youtube_ids():
+    from types import SimpleNamespace as NS
+    assert web.youtube_embed_id(NS(platform="youtube", video_id="WeIzH2jFsNw")) == "WeIzH2jFsNw"
+    assert web.youtube_embed_id(NS(platform="tiktok", video_id="WeIzH2jFsNw")) is None
+    for bad in ('x" onload="alert(1)', "short", "WeIzH2jFsNw?autoplay=1", ""):
+        assert web.youtube_embed_id(NS(platform="youtube", video_id=bad)) is None
+
+
+def test_static_site_hands_the_link_to_the_hosted_analyzer(client, monkeypatch):
+    monkeypatch.setattr(web, "STATIC_SITE", True)
+    monkeypatch.setattr(web, "ANALYZER_URL", "https://someone-ai-video-observatory.hf.space")
+    page = client.get("/?lang=pt").text
+    assert 'action="https://someone-ai-video-observatory.hf.space/"' in page and 'method="get"' in page
+    assert 'name="url"' in page and 'id="video-url"' in page
+
+
+def test_hosted_analyzer_prefills_and_starts_with_a_handed_link(client, monkeypatch):
+    monkeypatch.setattr(web, "host_provider", lambda: "groq")
+    page = client.get("/?url=https://www.youtube.com/watch?v=WeIzH2jFsNw").text
+    assert 'value="https://www.youtube.com/watch?v=WeIzH2jFsNw" data-autostart' in page
+    assert "data-autostart" not in client.get("/?url=javascript:alert(1)").text.split("<script")[0]

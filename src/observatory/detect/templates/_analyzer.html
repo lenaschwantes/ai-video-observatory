@@ -49,8 +49,23 @@
 {% if not live %}
   {# ---- static site: no server here ---------------------------------------- #}
   {% if analyzer_url %}
-  <a class="btn" href="{{ analyzer_url }}" style="display:inline-block; text-decoration:none; font-size:1.1rem; padding:16px 28px; border-radius:12px; background:var(--accent); color:var(--page)">{{ t('static_cta') }} →</a>
-  <p class="trust">{{ t('home_trust') }}</p>
+  {# same box as the live site; the link is handed to the hosted analyzer, which starts right away #}
+  <form class="analyze" method="get" action="{{ analyzer_url.rstrip('/') }}/" autocomplete="off">
+    <input type="hidden" name="lang" value="{{ lang }}">
+    <div class="bar">
+      <input type="url" name="url" id="video-url" required placeholder="{{ t('home_paste') }}" aria-label="{{ t('link_label') }}">
+      <button class="btn" type="submit" id="analyze-btn">{{ t('home_check') }}</button>
+    </div>
+    <div class="examples"><span class="muted">{{ t('examples') }}</span>
+      {% for ex in examples %}<button type="button" data-example="{{ ex.url }}">{{ ex[lang] }}</button>{% endfor %}
+    </div>
+    <p class="trust">🔒 {{ t('home_trust') }}</p>
+  </form>
+  <script>
+    document.querySelectorAll('[data-example]').forEach((b) => b.addEventListener('click', () => {
+      const u = document.getElementById('video-url'); u.value = b.dataset.example; u.focus();
+    }));
+  </script>
   {% else %}
   <p style="margin-top:0">{{ t('static_none') }}</p>
   <ol class="steps">
@@ -63,7 +78,7 @@
   <form class="analyze" method="post" action="/analyze" autocomplete="off" enctype="multipart/form-data"
         hx-post="/analyze" hx-encoding="multipart/form-data" hx-target="#analyze-status" hx-swap="innerHTML" hx-disabled-elt="find button[type=submit]">
     <div class="bar">
-      <input type="url" name="url" id="video-url" placeholder="{{ t('home_paste') }}" aria-label="{{ t('link_label') }}">
+      <input type="url" name="url" id="video-url" placeholder="{{ t('home_paste') }}" aria-label="{{ t('link_label') }}" value="{{ prefill_url or '' }}"{% if prefill_url %} data-autostart{% endif %}>
       <button class="btn" type="submit" id="analyze-btn">{{ t('home_check') }}</button>
     </div>
     <div class="examples"><span class="muted">{{ t('examples') }}</span>
@@ -178,5 +193,11 @@
     const u = document.getElementById('video-url'); u.value = b.dataset.example; u.focus();
   }));
   sync();
+  // arrived from the static site with a link: start straight away
+  const pre = document.querySelector('#video-url[data-autostart]');
+  // wait for htmx to wire the form (it does so on DOMContentLoaded), then submit
+  if (pre) document.addEventListener('DOMContentLoaded', () => setTimeout(() => {
+    pre.removeAttribute('data-autostart'); pre.form.requestSubmit(document.getElementById('analyze-btn'));
+  }, 0));
 })();
 </script>

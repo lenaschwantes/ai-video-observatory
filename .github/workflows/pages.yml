@@ -27,6 +27,10 @@ jobs:
           cache: pip
       - run: pip install -e ".[detect]"
       - name: Export the static site
+        env:
+          # public URL of the hosted analyzer (Hugging Face Space); set it under
+          # Settings > Secrets and variables > Actions > Variables. Empty = Kaggle route.
+          ANALYZER_URL: ${{ vars.ANALYZER_URL }}
         run: |
           python scripts/export_static.py \
             --base "/${{ github.event.repository.name }}" \

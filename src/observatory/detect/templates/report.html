@@ -29,6 +29,11 @@
   .frame figcaption.open .txt { -webkit-line-clamp: unset; }
   .verdict-hero { border-top: 6px solid var(--muted); }
   .verdict-hero.likely_ai { border-top-color: var(--ai); } .verdict-hero.likely_human { border-top-color: var(--human); }
+  .top { display: grid; gap: 20px; margin-top: 12px; }
+  .top.with-video { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  @media (max-width: 900px) { .top.with-video { grid-template-columns: 1fr; } }
+  .player { border-radius: 14px; overflow: hidden; border: 1px solid var(--ring); background: #000; aspect-ratio: 16/9; }
+  .player iframe { display: block; width: 100%; height: 100%; border: 0; }
   ul.clues { padding-left: 0; list-style: none; display: grid; gap: 8px; }
   ul.clues li { padding: 10px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--ring); border-left: 4px solid var(--muted); }
   ul.clues li.ai { border-left-color: var(--ai); } ul.clues li.human { border-left-color: var(--human); }
@@ -56,7 +61,8 @@
     <p><a href="/#analisar">← {{ t('check_another') }}</a></p>
     <p class="muted" style="margin:0 0 6px">{{ r.video.platform }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %} · {{ r.video.title or r.slug }}{% if r.video.url %} · <a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">{{ t('original') }} ↗</a>{% endif %}</p>
 
-    <div class="chart verdict-hero {{ r.verdict.value }}" style="margin-top:12px; padding:28px">
+    <div class="top{% if embed_id %} with-video{% endif %}">
+    <div class="chart verdict-hero {{ r.verdict.value }}" style="padding:28px">
       <span class="pill {{ r.verdict.value }}" style="font-size:.95rem">{{ t('verdict_' ~ r.verdict.value) }}</span>
       <h1 style="font-size:clamp(1.8rem,5vw,2.8rem); margin:14px 0 10px">{{ t('verdict_sentence_' ~ r.verdict.value) }}</h1>
       <p class="dek" style="margin:0">{{ t('verdict_explain_' ~ r.verdict.value) }}</p>
@@ -74,6 +80,13 @@
         </div>
       </div>
       <p class="muted" style="margin:0; font-size:.92rem"><strong data-countup data-value="{{ p }}" data-suffix="%">{{ p }}%</strong> {{ t('chance', p=p).split(' ', 1)[1] }}</p>
+    </div>
+    {% if embed_id %}
+    <figure class="player" style="margin:0">
+      <iframe id="player" src="https://www.youtube-nocookie.com/embed/{{ embed_id }}?rel=0&amp;enablejsapi=1" title="{{ t('watch_video') }}: {{ r.video.title or r.slug }}"
+        loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>
+    </figure>
+    {% endif %}
     </div>
   </section>
 

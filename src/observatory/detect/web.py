@@ -12,6 +12,7 @@ from functools import partial
 import html
 import json
 import os
+import re
 import shutil
 import tempfile
 import threading
@@ -50,6 +51,25 @@ KAGGLE_URL = os.environ.get(
     "KAGGLE_NOTEBOOK_URL",
     "https://www.kaggle.com/kernels/welcome?src=https://github.com/lenaschwantes/ai-video-observatory/blob/main/notebooks/analyze_on_kaggle.ipynb",
 )
+# The hero shows what a result looks like before anyone pastes a link: a real
+# analysis (a Veo 3 clip, 84%), summarized. The thumbnail is YouTube's own.
+HERO_EXAMPLE = {
+    # Taken from the stored report of this video (data/reports/youtube-weizh2jfsnw);
+    # the clues paraphrase what the vision model actually wrote for those frames.
+    "slug": "youtube-weizh2jfsnw",
+    "url": "https://www.youtube.com/watch?v=WeIzH2jFsNw",
+    "thumb": "https://i.ytimg.com/vi/WeIzH2jFsNw/hqdefault.jpg",
+    "frame": "frame_06.jpg",
+    "probability": 0.84,
+    "verdict": "likely_ai",
+    "title": {"pt": "Clipe feito com o Veo 3", "en": "Clip made with Veo 3"},
+    "clues": [
+        ("ai", 21.5, {"pt": "O texto no relógio sai levemente amassado e os ponteiros parecem de plástico",
+                      "en": "The text on the clock is slightly squashed and the hands look like plastic"}),
+        ("ai", 25.0, {"pt": "O celular tem um brilho plástico, não de tinta de verdade",
+                      "en": "The phone has a plastic sheen rather than real paint"}),
+    ],
+}
 # Where the static site (GitHub Pages) sends people to check a video: a hosted
 # copy of this app with its own key (e.g. a Hugging Face Space). Empty means
 # no hosted analyzer yet, and the static site offers Kaggle instead.
@@ -208,10 +228,18 @@ def _home(request: Request, error: str | None = None, status_code: int = 200) ->
         "index.html",
         {"b": benchmark_view(), "reports": _recent(), "allow_live": ALLOW_LIVE, "allow_byok": ALLOW_BYOK, "allow_upload": ALLOW_UPLOAD, "static_site": STATIC_SITE,
          "host_vision": bool(host_provider()) and ALLOW_LIVE, "kaggle_url": KAGGLE_URL, "examples": EXAMPLES,
-         "analyzer_url": ANALYZER_URL,
+         "analyzer_url": ANALYZER_URL, "hero_example": HERO_EXAMPLE,
+         "hero_example_local": (REPORTS_DIR / HERO_EXAMPLE["slug"] / "report.json").exists(),
+         "prefill_url": _prefill(request),
          "error": error, "limit": PER_IP_DAILY, "providers": PROVIDERS},
         status_code,
     )
+
+
+def _prefill(request: Request) -> str:
+    """A link handed over by the static site (?url=...), so the visitor never retypes it."""
+    url = (request.query_params.get("url") or "").strip()[:500]
+    return url if url.startswith(("https://", "http://")) else ""
 
 
 # --- routes ------------------------------------------------------------------
@@ -529,7 +557,21 @@ def show_report(request: Request, slug: str):
             "n": len(items),
             "texts": [i18n.evidence(e.text, lang) for e in items],
         })
-    return render(request, "report.html", {"r": report, "marks": marks, "duration": duration})
+    return render(request, "report.html", {"r": report, "marks": marks, "duration": duration,
+                                           "embed_id": youtube_embed_id(report.video)})
+
+
+_YT_ID = re.compile(r"[A-Za-z0-9_-]{11}")
+
+
+def youtube_embed_id(video) -> str | None:
+    """The id to embed the original video next to the verdict, YouTube only.
+
+    Validated so a stored report can never inject anything into the iframe URL."""
+    vid = getattr(video, "video_id", "") or ""
+    if getattr(video, "platform", "") == "youtube" and _YT_ID.fullmatch(vid):
+        return vid
+    return None
 
 
 @app.get("/api/report/{slug}")
