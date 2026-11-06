@@ -139,3 +139,11 @@ def test_hosted_analyzer_prefills_and_starts_with_a_handed_link(client, monkeypa
     page = client.get("/?url=https://www.youtube.com/watch?v=WeIzH2jFsNw").text
     assert 'value="https://www.youtube.com/watch?v=WeIzH2jFsNw" data-autostart' in page
     assert "data-autostart" not in client.get("/?url=javascript:alert(1)").text.split("<script")[0]
+
+
+def test_site_icons_are_served(client):
+    r = client.get("/favicon.ico")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/x-icon"
+    page = client.get("/").text
+    for name in ("favicon.svg", "favicon.ico", "apple-touch-icon.png"):
+        assert f"/static/{name}" in page and client.get(f"/static/{name}").status_code == 200

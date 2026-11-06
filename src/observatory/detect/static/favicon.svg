@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <style>
-    .bg { fill: #0b0b0b; } .ring { fill: none; stroke: #f9f9f7; } .dot { fill: #c2410c; }
-    @media (prefers-color-scheme: dark) { .bg { fill: #f0efec; } .ring { stroke: #0b0b0b; } .dot { fill: #fb923c; } }
+    .bg { fill: #0b0b0b; } .br { fill: none; stroke: #f9f9f7; } .pl { fill: #e5571f; stroke: #e5571f; }
+    @media (prefers-color-scheme: dark) { .bg { fill: #f9f9f7; } .br { stroke: #0b0b0b; } }
   </style>
-  <rect class="bg" width="64" height="64" rx="14"/>
-  <circle class="ring" cx="28" cy="32" r="14" stroke-width="7"/>
-  <circle class="dot" cx="49" cy="44" r="6"/>
+  <rect class="bg" width="64" height="64" rx="15"/>
+  <path class="br" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M13 23 L13 13 L23 13 M41 13 L51 13 L51 23 M51 41 L51 51 L41 51 M23 51 L13 51 L13 41"/>
+  <path class="pl" stroke-width="4" stroke-linejoin="round" d="M26 21.5 L26 42.5 L43.5 32 Z"/>
 </svg>
