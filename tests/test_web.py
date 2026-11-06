@@ -135,7 +135,7 @@ def test_visitor_key_reaches_the_provider_and_is_never_echoed(client, tmp_path, 
     _, status = _run_job(client, {"url": "https://www.youtube.com/watch?v=x", "key_provider": "groq",
                                   "key_model": "", "api_key": SECRET})
     assert seen == {"provider": "groq", "model": "qwen/qwen3.8-27b", "key": SECRET}
-    assert SECRET not in status.text and "***" in status.text
+    assert SECRET not in status.text and "Algo deu errado" in status.text  # one plain sentence, key never echoed
     assert all(SECRET not in str(job) for job in web._jobs.values())
 
 
@@ -234,7 +234,8 @@ def test_uploaded_reports_stay_out_of_the_public_list(client, tmp_path):
     (tmp_path / "upload-abc").mkdir()
     (tmp_path / "upload-abc" / "report.json").write_text(up.model_dump_json())
     home = client.get("/?lang=en").text
-    assert "/report/youtube-x" in home and "upload-abc" not in home and "private.mp4" not in home
+    # only curated examples are listed; visitor analyses and uploads never are
+    assert "/report/youtube-x" not in home and "upload-abc" not in home and "private.mp4" not in home
     page = client.get("/report/upload-abc").text
     assert 'name="robots" content="noindex, nofollow"' in page
 

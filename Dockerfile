@@ -17,6 +17,7 @@ ENV REPORTS_DIR=/tmp/reports \
     BENCHMARKS_FILE=/app/docs/benchmarks.json \
     DATASET_FILE=/app/eval/dataset.csv \
     ALLOW_UPLOAD=0 \
+    TRUST_PROXY=1 \
     DOCS_ROOT=/app \
     PORT=7860
 EXPOSE 7860

@@ -22,7 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -137,18 +137,43 @@ def render(request: Request, name: str, context: dict, status_code: int = 200) -
     return response
 
 
+# Behind Hugging Face / Render / Fly every request arrives from the proxy, so the
+# per-visitor limit would be shared by everyone. With TRUST_PROXY=1 the visitor
+# is the address the proxy appended last to X-Forwarded-For (the leftmost
+# entries are whatever the client sent, so they are never trusted).
+TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
+
+
+def client_ip(request: Request) -> str:
+    if TRUST_PROXY:
+        hops = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+        if hops:
+            return hops[-1][:64]
+    return request.client.host if request.client else "unknown"
+
+
 def _within_limits(bucket: str, per_bucket: int = PER_IP_DAILY, count_global: bool = True) -> bool:
     cutoff = time.time() - 86400
     for key in (bucket, "*"):
         _usage[key] = [t for t in _usage[key] if t > cutoff]
+    if len(_usage) > 5000:  # forget visitors with nothing left in the window
+        for key in [k for k, v in _usage.items() if not v or v[-1] <= cutoff]:
+            del _usage[key]
     return len(_usage[bucket]) < per_bucket and (not count_global or len(_usage["*"]) < GLOBAL_DAILY)
 
 
+def example_slugs() -> set[str]:
+    """Reports bundled with the app (examples/reports), reviewed before publishing."""
+    if not EXAMPLES_DIR.exists():
+        return set()
+    return {d.name for d in EXAMPLES_DIR.iterdir() if (d / "report.json").exists()}
+
+
 def _recent(limit: int = 6) -> list[Report]:
-    """Public list on the home page. Uploaded files are private to whoever
-    holds the link, so they are never listed."""
-    reports = [r for d in REPORTS_DIR.iterdir() if d.is_dir() and (r := load_report(REPORTS_DIR, d.name))]
-    reports = [r for r in reports if r.video.platform != "upload"]
+    """Public list on the home page: only the curated examples. Whatever a
+    visitor analyzes stays reachable by its own link but never shows up on the
+    home page, so nobody can put an offensive video on the front page."""
+    reports = [r for slug in example_slugs() if (r := load_report(REPORTS_DIR, slug))]
     return sorted(reports, key=lambda r: r.analyzed_at, reverse=True)[:limit]
 
 
@@ -245,7 +270,44 @@ def _prefill(request: Request) -> str:
 # --- routes ------------------------------------------------------------------
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> FileResponse:
+    return FileResponse(Path(__file__).parent / "static" / "favicon.ico", media_type="image/x-icon")
+
+
 MAX_REQUEST_BYTES = MAX_BYTES + 1024 * 1024  # largest upload plus form fields
+
+
+# Frames come from this server; scripts and styles from the CDNs the templates
+# name; the only embed is the YouTube player. frame-ancestors lets Hugging Face
+# show the app inside its Space page and nobody else.
+CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https://i.ytimg.com",
+    "frame-src https://www.youtube-nocookie.com",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self' https://huggingface.co https://*.hf.space",
+])
+SECURITY_HEADERS = {
+    "Content-Security-Policy": CSP,
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
 
 
 @app.middleware("http")
@@ -351,6 +413,33 @@ def _run(url: str, upload: Path | None, **kwargs) -> Report:
         shutil.rmtree(upload.parent, ignore_errors=True)
 
 
+_ERRORS = [  # (words in the technical message, PT, EN)
+    (("too long or live",), "Esse vídeo é longo demais ou é uma transmissão ao vivo. Tente um vídeo de até 20 minutos.",
+     "This video is too long or a live stream. Try a video up to 20 minutes."),
+    (("larger than", "max_filesize", "file is larger"), "Esse vídeo é grande demais para analisar aqui.",
+     "This video is too large to analyze here."),
+    (("login", "log in", "cookies", "sign in"),
+     "A plataforma pediu login para esse vídeo (comum no Instagram e no X). Tente outro link.",
+     "The platform asked for a login for this video (common on Instagram and X). Try another link."),
+    (("private", "unavailable", "removed", "not available", "does not exist", "404"),
+     "Esse vídeo não está disponível: pode ser privado ou ter sido removido.",
+     "This video is not available: it may be private or removed."),
+    (("unsupported url", "not allowed", "no suitable", "only public links"),
+     "Esse link não aponta para um vídeo público do YouTube, TikTok, Instagram ou X.",
+     "This link does not point to a public YouTube, TikTok, Instagram or X video."),
+]
+
+
+def friendly_error(message: str, pt: bool) -> str:
+    """One plain sentence for a failed analysis; the raw technical text is never shown."""
+    low = message.lower()
+    for words, msg_pt, msg_en in _ERRORS:
+        if any(w in low for w in words):
+            return msg_pt if pt else msg_en
+    return ("Não conseguimos analisar esse vídeo. Tente de novo em instantes ou use outro link." if pt
+            else "We could not analyze this video. Try again shortly or use another link.")
+
+
 def _assessor_for(byok: BYOK | None, language: str):
     """The visual check in the visitor's language, on their key if they gave one."""
     return byok.assessor(language) if byok else partial(assess, language=language)
@@ -368,9 +457,9 @@ def _start_job(url: str, byok: BYOK | None = None, upload: Path | None = None, l
         try:
             report = _run(url, upload, progress=lambda s: job.update(stage=s), **kwargs)
             job.update(stage="done", slug=report.slug)
-        except Exception as exc:  # shown to the visitor, so keep it short
-            msg = str(exc)
-            job.update(stage="error", error=(byok.scrub(msg) if byok else msg)[:200])
+        except Exception as exc:  # shown to the visitor as one plain sentence
+            msg = byok.scrub(str(exc)) if byok else str(exc)
+            job.update(stage="error", error=friendly_error(msg, language == "pt"))
         finally:
             job["ended"] = time.time()
             _job_slots.release()
@@ -432,10 +521,10 @@ def run_analysis(
         except FetchError:
             return fail("Só links públicos do YouTube, TikTok, Instagram ou X, ou um arquivo de vídeo." if pt
                         else "Only public YouTube, TikTok, Instagram or X links, or a video file.", 400)
-    ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
     bucket = f"byok:{ip}" if byok else ip
     if not _within_limits(bucket, BYOK_PER_IP_DAILY if byok else PER_IP_DAILY, count_global=not byok):
-        return fail("Limite diário atingido. Tente amanhã ou rode localmente." if pt else "Daily limit reached. Try tomorrow or run it locally.", 429)
+        return fail("Limite diário atingido. Tente amanhã, ou use sua própria chave gratuita em Opções avançadas." if pt else "Daily limit reached. Try tomorrow, or use your own free key under Advanced options.", 429)
     _usage[bucket].append(time.time())
     if not byok:
         _usage["*"].append(time.time())
@@ -456,8 +545,7 @@ def run_analysis(
     try:
         report = _run(url, upload, assessor=_assessor_for(byok, _lang(request)))
     except FetchError as exc:
-        msg = str(exc)
-        return fail(("Não foi possível baixar o vídeo: " if pt else "Could not download the video: ") + (byok.scrub(msg) if byok else msg)[:200], 422)
+        return fail(friendly_error(byok.scrub(str(exc)) if byok else str(exc), pt), 422)
     finally:
         _job_slots.release()
     return RedirectResponse(f"/report/{report.slug}", status_code=303)
@@ -478,7 +566,7 @@ def check_key(request: Request, provider: str = Form(""), api_key: str = Form(""
     if not 10 <= len(key) <= 300 or any(c.isspace() for c in key):
         return JSONResponse({"ok": False, "error": "Essa chave não parece válida." if pt else "That key does not look valid."},
                             status_code=400)
-    ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
     bucket = f"keycheck:{ip}"
     if not _within_limits(bucket, KEYCHECK_PER_IP_DAILY, count_global=False):
         return JSONResponse({"ok": False, "error": "Limite de testes atingido hoje." if pt else "Too many key checks today."},
@@ -534,9 +622,17 @@ def docs_page(request: Request, slug: str):
     })
 
 
+_SLUG = re.compile(r"[a-z0-9_-]{1,100}")
+
+
+def _load(slug: str) -> Report | None:
+    """Slugs come from the URL: only [a-z0-9_-], so no path can leave REPORTS_DIR."""
+    return load_report(REPORTS_DIR, slug) if _SLUG.fullmatch(slug) else None
+
+
 @app.get("/report/{slug}", response_class=HTMLResponse)
 def show_report(request: Request, slug: str):
-    report = load_report(REPORTS_DIR, slug)
+    report = _load(slug)
     if report is None:
         raise HTTPException(404, "report not found")
     duration = report.video.duration or max([e.timestamp or 0 for s in report.signals for e in s.evidence] + [1])
@@ -558,7 +654,9 @@ def show_report(request: Request, slug: str):
             "texts": [i18n.evidence(e.text, lang) for e in items],
         })
     return render(request, "report.html", {"r": report, "marks": marks, "duration": duration,
-                                           "embed_id": youtube_embed_id(report.video)})
+                                           "embed_id": youtube_embed_id(report.video),
+                                           # visitor analyses are not curated: keep them out of search engines
+                                           "noindex": slug not in example_slugs()})
 
 
 _YT_ID = re.compile(r"[A-Za-z0-9_-]{11}")
@@ -576,7 +674,7 @@ def youtube_embed_id(video) -> str | None:
 
 @app.get("/api/report/{slug}")
 def report_json(slug: str):
-    report = load_report(REPORTS_DIR, slug)
+    report = _load(slug)
     if report is None:
         raise HTTPException(404, "report not found")
     return JSONResponse(report.model_dump(mode="json"))

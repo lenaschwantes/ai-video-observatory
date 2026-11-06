@@ -13,6 +13,10 @@ from observatory.detect.models import VideoInfo
 ALLOWED_HOSTS = ("youtube.com", "youtu.be", "tiktok.com", "instagram.com", "x.com", "twitter.com")
 VIDEO_SUFFIXES = (".mp4", ".mov", ".m4v", ".webm", ".mkv")
 MAX_BYTES = 200 * 1024 * 1024
+MAX_SECONDS = int(os.environ.get("MAX_VIDEO_SECONDS", "1200"))
+# Only the extractors of the platforms above. Without this, a post whose card
+# points elsewhere could make yt-dlp's generic extractor fetch any address.
+EXTRACTORS = ["youtube", "YoutubeYtBe", "TikTok", "vm.tiktok", "Instagram", "twitter"]
 
 
 LOGIN_HINTS = ("login required", "log in", "rate-limit reached", "cookies")
@@ -81,6 +85,9 @@ def fetch(url: str, workdir: Path) -> tuple[VideoInfo, Path]:
         "socket_timeout": 30,
         "retries": 3,
         "max_filesize": MAX_BYTES,
+        "allowed_extractors": EXTRACTORS,
+        # live streams have no size to check, and long videos tie up a slot
+        "match_filter": yt_dlp.utils.match_filter_func(f"!is_live & duration <=? {MAX_SECONDS}"),
         "quiet": True,
         "noprogress": True,
         "no_warnings": True,
@@ -94,6 +101,8 @@ def fetch(url: str, workdir: Path) -> tuple[VideoInfo, Path]:
     except yt_dlp.utils.DownloadError as exc:
         raise FetchError(friendly_error(str(exc))) from exc
     if not path.exists():
+        if info.get("is_live") or (info.get("duration") or 0) > MAX_SECONDS:
+            raise FetchError(f"video too long or live (limit {MAX_SECONDS // 60} min)")
         raise FetchError("video could not be downloaded")
     meta = VideoInfo(
         url=info.get("webpage_url") or url,
