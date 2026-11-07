@@ -55,6 +55,10 @@ def test_client_ip_trusts_only_the_proxy_hop(monkeypatch):
     assert web.client_ip(req) == "10.0.0.1"  # header ignored unless behind a proxy
     monkeypatch.setattr(web, "TRUST_PROXY", True)
     assert web.client_ip(req) == "203.0.113.9"  # the spoofable leftmost entry is ignored
+    monkeypatch.setattr(web, "PROXY_HOPS", 2)  # two proxies of ours appended an entry each
+    assert web.client_ip(req) == "6.6.6.6"
+    monkeypatch.setattr(web, "PROXY_HOPS", 3)  # fewer entries than proxies: fall back to the socket
+    assert web.client_ip(req) == "10.0.0.1"
 
 
 def test_downloads_use_only_the_platform_extractors():

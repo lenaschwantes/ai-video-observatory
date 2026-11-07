@@ -137,18 +137,20 @@ def render(request: Request, name: str, context: dict, status_code: int = 200) -
     return response
 
 
-# Behind Hugging Face / Render / Fly every request arrives from the proxy, so the
+# Behind Cloud Run / Render / Fly every request arrives from the proxy, so the
 # per-visitor limit would be shared by everyone. With TRUST_PROXY=1 the visitor
-# is the address the proxy appended last to X-Forwarded-For (the leftmost
-# entries are whatever the client sent, so they are never trusted).
+# is read from X-Forwarded-For, counting PROXY_HOPS entries from the right:
+# those are appended by our own proxies, while the leftmost entries are
+# whatever the client sent and are never trusted.
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
+PROXY_HOPS = max(1, int(os.environ.get("PROXY_HOPS", "1")))
 
 
 def client_ip(request: Request) -> str:
     if TRUST_PROXY:
         hops = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
-        if hops:
-            return hops[-1][:64]
+        if len(hops) >= PROXY_HOPS:
+            return hops[-PROXY_HOPS][:64]
     return request.client.host if request.client else "unknown"
 
 
@@ -678,6 +680,13 @@ def report_json(slug: str):
     if report is None:
         raise HTTPException(404, "report not found")
     return JSONResponse(report.model_dump(mode="json"))
+
+
+@app.get("/api/ip", include_in_schema=False)
+def my_ip(request: Request):
+    """The address the rate limit counts for the caller (their own, nobody else's).
+    Used once after a deploy to check the proxy settings."""
+    return JSONResponse({"ip": client_ip(request), "forwarded_for": request.headers.get("x-forwarded-for", "")})
 
 
 @app.get("/api/benchmarks")
