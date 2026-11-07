@@ -29,6 +29,8 @@ detect = [
     "jinja2>=3.1",
     "python-multipart>=0.0.9",
     "markdown-it-py>=3.0",
+    "rapidocr>=3.4",
+    "onnxruntime>=1.20",
 ]
 bench = ["openai>=1.50", "google-genai>=1.0", "imageio-ffmpeg>=0.5"]
 eval = ["deepeval>=3.0"]

@@ -10,6 +10,9 @@ RUN useradd -m -u 1000 app
 WORKDIR /app
 COPY --chown=app . .
 RUN pip install --no-cache-dir ".[detect]"
+# Fetch the OCR models at build time (the app runs as a user that cannot write
+# site-packages). Reading a real line of text loads both detector and recognizer.
+RUN python -m observatory.detect.frametext --warmup
 
 USER app
 ENV REPORTS_DIR=/tmp/reports \

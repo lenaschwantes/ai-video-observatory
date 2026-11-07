@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[3]
 WEIGHTS_DIR = Path(os.environ.get("WEIGHTS_DIR", ROOT / "weights"))
 log = logging.getLogger(__name__)
-SIGNALS = ("platform_label", "provenance", "text", "visual")
+SIGNALS = ("platform_label", "provenance", "text", "visual", "fingerprint", "frame_text", "motion")
 
 
 class Weights(BaseModel):

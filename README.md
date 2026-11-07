@@ -191,6 +191,7 @@ Live TikTok collection through the unofficial client is currently blocked by bot
 ## Roadmap
 
 - [x] **v0, analyzer**: four signals, combination with an inconclusive band, CLI, web UI, Docker.
+- [x] **v0.2, three more signals**: file fingerprint (generator/camera tags, standard clip lengths), generator watermarks read by local OCR (RapidOCR), and motion consistency from optical flow (experimental, capped at ±0.6 until calibrated).
 - [x] **Open benchmark**: commercial detectors and vision models on the same frames, Brazilian subset, 95% intervals, recall with no real video accused.
 - [x] **Robustness to re-compression**: noise floor, paired bootstrap, McNemar, alignment check, leakage check.
 - [x] **Website**: Portuguese/English, accessible charts, live progress, visitor keys, private uploads, docs inside the site.

@@ -8,12 +8,16 @@ import os
 import shutil
 import tempfile
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
 from observatory.detect.fetch import fetch, fetch_local, slugify
 from observatory.detect.frames import extract_frames
 from observatory.detect.models import Report, Signal, Verdict
+from observatory.detect.fingerprint import fingerprint_signal
+from observatory.detect.frametext import frame_text_signal
+from observatory.detect.motion import motion_signal
 from observatory.detect.signals import platform_label_signal, provenance_signal, text_signal
 from observatory.detect.vision import assess, visual_signal
 from observatory.learn.weights import DEFAULT, Weights, load_current
@@ -91,9 +95,18 @@ def _analyze_locked(video, video_path: Path, out_dir: Path, assessor, progress) 
     progress("frames")
     frames = extract_frames(video_path, out_dir)
     progress("signals")
-    signals = [platform_label_signal(video), provenance_signal(video_path), text_signal(video)]
+    signals = [platform_label_signal(video), provenance_signal(video_path), text_signal(video),
+               fingerprint_signal(video, video_path)]
     progress("visual")
-    signals.append(visual_signal(frames, out_dir, assessor=assessor))
+    # the model call waits on the network; OCR and optical flow run on the CPU meanwhile
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        visual = pool.submit(visual_signal, frames, out_dir, assessor=assessor)
+        text_in_frames = pool.submit(frame_text_signal, frames, out_dir)
+        motion = pool.submit(motion_signal, video_path, out_dir)
+        motion_result, pair = motion.result()
+        signals += [visual.result(), text_in_frames.result(), motion_result]
+    if pair is not None:
+        frames = [*frames, pair]
 
     weights = load_current()
     probability, verdict = combine(signals, weights)
