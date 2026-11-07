@@ -93,7 +93,8 @@ def test_cookies_file_only_when_it_exists(tmp_path, monkeypatch):
     jar = tmp_path / "cookies.txt"
     jar.write_text("# Netscape HTTP Cookie File\n")
     monkeypatch.setenv("YTDLP_COOKIES", str(jar))
-    assert cookies_file() == str(jar)
+    # a private copy of it (yt-dlp writes cookies back; the original may be read-only)
+    assert open(cookies_file()).read() == jar.read_text()
 
 
 # --- end to end with fakes ----------------------------------------------

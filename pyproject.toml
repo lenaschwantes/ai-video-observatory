@@ -17,7 +17,9 @@ dependencies = [
 [project.optional-dependencies]
 tiktok = ["TikTokApi>=6.5"]
 detect = [
-    "yt-dlp>=2026.1",
+    # [default] brings yt-dlp-ejs; deno runs YouTube's JS challenges (needed with cookies)
+    "yt-dlp[default]>=2026.1",
+    "deno>=2.3",
     "scenedetect[opencv-headless]>=0.7",
     "c2pa-python>=0.38",
     "anthropic>=2.4",

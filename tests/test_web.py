@@ -218,8 +218,8 @@ def test_missing_report_gets_a_friendly_page_but_api_stays_json(client):
 
 def test_link_preview_tags_and_icon(client):
     page = client.get("/?lang=en").text
-    assert 'property="og:image" content="http://testserver/static/og-en.png"' in page
-    assert client.get("/static/og-en.png").status_code == 200
+    assert 'property="og:image" content="http://testserver/static/og-en.jpg"' in page
+    assert client.get("/static/og-en.jpg").status_code == 200
     assert client.get("/static/favicon.svg").status_code == 200
 
 

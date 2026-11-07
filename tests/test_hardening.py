@@ -75,6 +75,43 @@ def test_downloads_use_only_the_platform_extractors():
 def test_failed_downloads_read_as_one_plain_sentence():
     assert web.friendly_error("ERROR: [youtube] abc: Private video. Sign in", True).startswith("A plataforma pediu login")
     assert "não está disponível" in web.friendly_error("ERROR: [youtube] abc: Video unavailable", True)
+    bot = "ERROR: [youtube] abc: Sign in to confirm you're not a bot. Use --cookies"
+    assert web.friendly_error(bot, True).startswith("O YouTube bloqueou")
     assert "20 minutes" in web.friendly_error("video too long or live (limit 20 min)", False)
     odd = web.friendly_error("Traceback /app/src/observatory/x.py line 3", False)
     assert "/app" not in odd and odd.startswith("We could not analyze")
+
+
+def test_share_preview_uses_https_behind_a_proxy(client, monkeypatch):
+    monkeypatch.setattr(web, "TRUST_PROXY", True)
+    monkeypatch.setattr(web, "PUBLIC_URL", "")
+    page = client.get("/", headers={"x-forwarded-proto": "https"}).text
+    assert 'property="og:image" content="https://testserver/static/og-pt.jpg"' in page
+    assert client.get("/static/og-pt.jpg").headers["content-type"] == "image/jpeg"
+
+
+def test_cookies_are_used_from_a_private_writable_copy(tmp_path, monkeypatch):
+    import os, stat
+    original = tmp_path / "cookies.txt"
+    original.write_text("# Netscape HTTP Cookie File\n")
+    original.chmod(stat.S_IREAD)  # mounted read-only, as on Cloud Run
+    monkeypatch.setenv("YTDLP_COOKIES", str(original))
+    monkeypatch.setattr(fetch, "_cookie_copy", None)
+    copy = fetch.cookies_file()
+    assert copy and copy != str(original) and os.access(copy, os.W_OK)
+    assert open(copy).read() == original.read_text()
+    monkeypatch.setenv("YTDLP_COOKIES", str(tmp_path / "missing.txt"))
+    assert fetch.cookies_file() is None
+
+
+def test_youtube_bot_check_is_not_reported_as_a_login_wall():
+    raw = "ERROR: [youtube] x: Sign in to confirm you're not a bot. Use --cookies-from-browser or --cookies"
+    assert web.friendly_error(fetch.friendly_error(raw), True).startswith("O YouTube bloqueou")
+
+
+def test_keys_with_a_windows_line_ending_are_cleaned(monkeypatch):
+    from observatory.detect import vision
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_example_key_123\r\n")
+    vision._clean_keys()
+    import os
+    assert os.environ["GROQ_API_KEY"] == "gsk_example_key_123"

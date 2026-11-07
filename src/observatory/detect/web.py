@@ -129,7 +129,7 @@ def render(request: Request, name: str, context: dict, status_code: int = 200) -
         name,
         {"lang": lang, "t": t, "note": lambda text: i18n.note(text, lang),
          "ev": lambda text: i18n.evidence(text, lang), "path": request.url.path,
-         "base_url": (PUBLIC_URL or str(request.base_url)).rstrip("/"), **context},
+         "base_url": public_base(request), **context},
         status_code=status_code,
     )
     if request.query_params.get("lang") in i18n.LANGS:
@@ -144,6 +144,19 @@ def render(request: Request, name: str, context: dict, status_code: int = 200) -
 # whatever the client sent and are never trusted.
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
 PROXY_HOPS = max(1, int(os.environ.get("PROXY_HOPS", "1")))
+
+
+def public_base(request: Request) -> str:
+    """Absolute address for share links and preview images. Behind a proxy the
+    app itself is reached over http, but visitors (and WhatsApp, which will not
+    follow a redirect for a preview image) must get https."""
+    if PUBLIC_URL:
+        return PUBLIC_URL.rstrip("/")
+    base = str(request.base_url).rstrip("/")
+    proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip()
+    if TRUST_PROXY and proto in ("http", "https"):
+        base = proto + base[base.index(":"):]
+    return base
 
 
 def client_ip(request: Request) -> str:
@@ -420,6 +433,9 @@ _ERRORS = [  # (words in the technical message, PT, EN)
      "This video is too long or a live stream. Try a video up to 20 minutes."),
     (("larger than", "max_filesize", "file is larger"), "Esse vídeo é grande demais para analisar aqui.",
      "This video is too large to analyze here."),
+    (("not a bot", "confirm you"),
+     "O YouTube bloqueou o download a partir do nosso servidor (ele desconfia de servidores na nuvem). Tente outro link ou mais tarde.",
+     "YouTube blocked the download from our server (it distrusts cloud servers). Try another link or later."),
     (("login", "log in", "cookies", "sign in"),
      "A plataforma pediu login para esse vídeo (comum no Instagram e no X). Tente outro link.",
      "The platform asked for a login for this video (common on Instagram and X). Try another link."),

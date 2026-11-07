@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
+import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -30,15 +32,36 @@ class FetchError(RuntimeError):
     pass
 
 
+_cookie_copy: Path | None = None
+
+
 def cookies_file() -> str | None:
-    """Path from YTDLP_COOKIES, if it points to an existing file."""
+    """A private, writable copy of the file in YTDLP_COOKIES, if it exists.
+
+    yt-dlp writes refreshed cookies back when a download ends, and on Cloud Run
+    the secret is mounted read-only; working on a copy keeps both happy and
+    never touches the original."""
+    global _cookie_copy
     path = os.environ.get("YTDLP_COOKIES", "").strip()
-    return path if path and Path(path).is_file() else None
+    if not path or not Path(path).is_file():
+        return None
+    if _cookie_copy is None or not _cookie_copy.exists():
+        fd, tmp = tempfile.mkstemp(prefix="ytcookies-", suffix=".txt")
+        os.close(fd)
+        shutil.copyfile(path, tmp)
+        os.chmod(tmp, 0o600)
+        _cookie_copy = Path(tmp)
+    return str(_cookie_copy)
 
 
 def friendly_error(message: str) -> str:
-    """Turn yt-dlp's login/rate-limit errors into one clear sentence."""
-    return LOGIN_MESSAGE if any(h in message.lower() for h in LOGIN_HINTS) else message
+    """Turn yt-dlp's login/rate-limit errors into one clear sentence. YouTube's
+    bot check also mentions cookies, but it is about our server, not the video,
+    so it keeps its own wording for the web layer to explain."""
+    low = message.lower()
+    if "not a bot" in low:
+        return "youtube blocked the download as a bot (not a bot check); cookies of a secondary account fix it"
+    return LOGIN_MESSAGE if any(h in low for h in LOGIN_HINTS) else message
 
 
 def check_url(url: str) -> str:

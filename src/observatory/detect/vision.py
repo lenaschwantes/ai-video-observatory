@@ -96,6 +96,18 @@ PROVIDERS: dict[str, ProviderSpec] = {
 }
 
 
+def _clean_keys() -> None:
+    """Keys stored from a Windows prompt or a file arrive with a trailing \r\n,
+    which makes the HTTP auth header invalid ("Connection error"). Strip them."""
+    names = {k for spec in PROVIDERS.values() for k in spec.key_env} | {"YOUTUBE_API_KEY"}
+    for k in names:
+        if (v := os.environ.get(k)) is not None and v != v.strip():
+            os.environ[k] = v.strip()
+
+
+_clean_keys()
+
+
 def has_key(name: str) -> bool:
     return any(os.environ.get(k) for k in PROVIDERS[name].key_env)
 

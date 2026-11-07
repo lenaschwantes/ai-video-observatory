@@ -110,8 +110,9 @@ def render(lang: str) -> None:
     tilted = k.rotate(-2, resample=Image.BICUBIC, expand=True)
     img.paste(shadow, (722 - 40, 80 - 40), shadow)
     img.paste(tilted, (722, 80), tilted)
-    img.save(OUT / f"og-{lang}.png", optimize=True)
-    print("wrote", OUT / f"og-{lang}.png")
+    # JPEG, well under WhatsApp's preview size limit (heavy images show no preview)
+    img.convert("RGB").save(OUT / f"og-{lang}.jpg", quality=86, optimize=True, progressive=False)
+    print("wrote", OUT / f"og-{lang}.jpg")
 
 
 if __name__ == "__main__":

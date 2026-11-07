@@ -13,11 +13,15 @@
   <meta property="og:title" content="{{ self.title() | trim }}">
   <meta property="og:description" content="{{ page_desc | trim }}">
   <meta property="og:url" content="{{ base_url }}{{ path }}">
-  <meta property="og:image" content="{{ base_url }}/static/og-{{ lang }}.png">
+  <meta property="og:image" content="{{ base_url }}/static/og-{{ lang }}.jpg">
+  <meta property="og:image:secure_url" content="{{ base_url }}/static/og-{{ lang }}.jpg">
+  <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{{ t('home_title') }}">
   <meta property="og:locale" content="{{ 'pt_BR' if lang == 'pt' else 'en_US' }}">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ base_url }}/static/og-{{ lang }}.jpg">
   <link rel="icon" href="/static/favicon.ico" sizes="48x48">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
