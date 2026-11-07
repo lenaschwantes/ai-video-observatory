@@ -66,6 +66,20 @@ if ($hasCookies) {
     $envs += ",YTDLP_COOKIES=/secrets/youtube/cookies.txt"
     Write-Host "Using YouTube cookies from the youtube-cookies secret."
 }
+
+# Optional: YouTube Data API key, for the "platform AI label" signal.
+$ErrorActionPreference = "Continue"
+gcloud secrets describe youtube-api-key --project $Project --format="value(name)" 2>$null | Out-Null
+$hasYtKey = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = "Stop"
+if ($hasYtKey) {
+    gcloud secrets add-iam-policy-binding youtube-api-key --project $Project `
+        --member "serviceAccount:$number-compute@developer.gserviceaccount.com" `
+        --role roles/secretmanager.secretAccessor | Out-Null
+    Step "letting Cloud Run read the youtube-api-key secret"
+    $secrets += ",YOUTUBE_API_KEY=youtube-api-key:latest"
+    Write-Host "Using the YouTube Data API key from the youtube-api-key secret."
+}
 $global:LASTEXITCODE = 0
 
 gcloud run deploy $Service --project $Project --region $Region --source . --quiet `
