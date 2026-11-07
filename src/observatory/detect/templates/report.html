@@ -12,7 +12,7 @@
   .pbar .zones { display: flex; height: 14px; border-radius: var(--r-sm); overflow: hidden; gap: 2px; }
   .pbar .zones div { height: 100%; }
   .pbar .z-h { background: var(--human-wash); } .pbar .z-i { background: var(--mid); } .pbar .z-a { background: var(--ai-wash); }
-  .pbar .marker { position: absolute; top: -8px; width: 4px; height: 30px; border-radius: 2px; background: var(--ink); transform: translateX(-2px); transition: left 1s cubic-bezier(.2,.8,.2,1); }
+  .pbar .marker { position: absolute; top: -8px; width: 4px; height: 30px; border-radius: 2px; background: var(--ink); transform: translateX(-2px); }
   .pbar .marker::after { content: attr(data-label); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
   .pbar .labels { display: flex; font-size: var(--fs-xs); color: var(--muted); margin-top: 8px; }
   .pbar .labels span { text-align: center; }
@@ -26,26 +26,27 @@
   .timeline .mark:hover::before, .timeline .mark:focus-visible::before { transform: scale(1.35); }
   .timeline .mark .n { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: var(--fs-xs); font-weight: 700; color: var(--ink); }
   .frame figcaption .txt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .frame figcaption.open .txt { -webkit-line-clamp: unset; }
   /* the verdict is the page's headline, not a box: a colored rule above it */
   .verdict-hero { border-top: 3px solid var(--muted); padding-top: 18px; }
-  .verdict-hero .chance { margin: 0; color: var(--ink-2); font-size: var(--fs-sm); }
-  .verdict-hero .chance strong { font-family: var(--serif); font-size: var(--fs-2xl); font-weight: 600; color: var(--ink); margin-right: 4px; }
-  .verdict-hero.likely_ai .chance strong { color: var(--ai); } .verdict-hero.likely_human .chance strong { color: var(--human); }
+  .vlabel.big { font-size: var(--fs-md); } .vlabel.big b { font-size: var(--fs-2xl); }
+  .pbar { margin-bottom: 8px; }
   .verdict-hero.likely_ai { border-top-color: var(--ai); } .verdict-hero.likely_human { border-top-color: var(--human); }
   .top { display: grid; gap: 20px; margin-top: 12px; }
   .top.with-video { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   @media (max-width: 900px) { .top.with-video { grid-template-columns: 1fr; } }
   .player { border-radius: var(--r-sm); overflow: hidden; background: #000; aspect-ratio: 16/9; }
   .player iframe { display: block; width: 100%; height: 100%; border: 0; }
-  ul.clues { padding-left: 0; list-style: none; display: grid; gap: 12px; max-width: 720px; }
+  .group + .group { margin-top: 40px; }
+  .group-title { display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-lg); margin: 0 0 14px; }
+  .group-title .tag { font-family: var(--serif); }
+  .group-title .count { font-family: var(--sans); font-size: var(--fs-sm); color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+  ul.clues { padding-left: 0; list-style: none; display: grid; gap: 12px; max-width: 720px; margin: 0 0 18px; }
   ul.clues li { padding: 2px 0 2px 14px; border-left: 3px solid var(--muted); }
   ul.clues li.ai { border-left-color: var(--ai); } ul.clues li.human { border-left-color: var(--human); }
   ul.next { padding-left: 0; list-style: none; display: grid; gap: 10px; font-size: var(--fs-md); max-width: 640px; }
   ul.next li { padding-left: 18px; position: relative; }
   ul.next li::before { content: ""; position: absolute; left: 0; top: .62em; width: 8px; height: 2px; background: var(--ink-2); }
   details.tech > summary { cursor: pointer; font-weight: 600; color: var(--ink-2); }
-  .more { border: 0; background: none; padding: 4px 0; color: var(--accent); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
   .tl-axis { display: flex; justify-content: space-between; font-size: var(--fs-xs); color: var(--muted); }
   .signal { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 18px 0; border-top: 1px solid var(--grid); }
   .signal:first-child { border-top: 0; }
@@ -65,11 +66,12 @@
 <div class="wrap">
   <section class="block" style="padding-top:28px">
     <p><a href="/#analisar">← {{ t('check_another') }}</a></p>
-    <p class="muted" style="margin:0 0 6px">{{ r.video.platform }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %} · {{ r.video.title or r.slug }}{% if r.video.url %} · <a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">{{ t('original') }} ↗</a>{% endif %}</p>
+    {% set platforms = {'youtube': 'YouTube', 'tiktok': 'TikTok', 'instagram': 'Instagram', 'twitter': 'X', 'upload': t('uploaded_file')} %}
+    <p class="muted" style="margin:0 0 6px">{{ platforms.get(r.video.platform, r.video.platform) }}{% if r.video.uploader %} · {{ r.video.uploader }}{% endif %}{% if r.video.url %} · <a href="{{ r.video.url }}" rel="noopener noreferrer" target="_blank">{{ t('original') }} ↗</a>{% endif %}</p>
 
     <div class="top{% if embed_id %} with-video{% endif %}">
     <div class="verdict-hero {{ r.verdict.value }}">
-      <span class="pill {{ r.verdict.value }}">{{ t('verdict_' ~ r.verdict.value) }}</span>
+      <span class="vlabel big {{ r.verdict.value }}" aria-label="{{ t('chance', p=p) }}"><b>{{ p }}%</b> · {{ (t('verdict_' ~ r.verdict.value)[:1] | lower) ~ t('verdict_' ~ r.verdict.value)[1:] }}</span>
       <h1 style="font-size:clamp(1.8rem,3.4vw,2.4rem); margin:14px 0 10px">{{ t('verdict_sentence_' ~ r.verdict.value) }}</h1>
       <p class="dek" style="margin:0">{{ t('verdict_explain_' ~ r.verdict.value) }}</p>
       <div class="pbar" role="img" aria-label="{{ t('chance', p=p) }}">
@@ -78,14 +80,13 @@
           <div class="z-i" style="width:{{ ((ai_threshold - human_threshold) * 100) | int }}%"></div>
           <div class="z-a" style="flex:1"></div>
         </div>
-        <div class="marker" id="marker" style="left:0%" data-label="{{ p }}%" data-target="{{ p }}"></div>
+        <div class="marker" id="marker" style="left:{{ p }}%" data-label="{{ p }}%"></div>
         <div class="labels">
           <span style="width:{{ (human_threshold * 100) | int }}%">{{ t('zone_human') }}</span>
           <span style="width:{{ ((ai_threshold - human_threshold) * 100) | int }}%">{{ t('zone_inconclusive') }}</span>
           <span style="flex:1">{{ t('zone_ai') }}</span>
         </div>
       </div>
-      <p class="chance"><strong data-countup data-value="{{ p }}" data-suffix="%">{{ p }}%</strong> {{ t('chance', p=p).split(' ', 1)[1] }}</p>
     </div>
     {% if embed_id %}
     <figure class="player" style="margin:0">
@@ -100,27 +101,32 @@
   {% for s in r.signals %}{% for e in s.evidence %}{% if e.frame %}{% set _ = framed.append(e) %}{% elif s.available %}{% set _ = loose.append(e) %}{% endif %}{% endfor %}{% endfor %}
   <section class="block reveal">
     <h2>{{ t('why_title') }}</h2>
-    {% if loose %}
-    <ul class="clues">
-      {% for e in loose %}<li class="{{ e.direction.value }}"><strong>{{ t('clue_' ~ ('real' if e.direction.value == 'human' else e.direction.value)) }}:</strong> {{ ev(e.text) }}</li>{% endfor %}
-    </ul>
-    {% endif %}
-    {% if framed %}
-    <p class="sub">{{ t('zoom_hint') }}</p>
-    <div class="frames" id="frames">
-      {% for e in framed %}
-      <figure class="frame" data-t="{{ (e.timestamp or 0) | round(1) }}">
-        <a href="/media/{{ r.slug }}/{{ e.frame }}" data-img="/media/{{ r.slug }}/{{ e.frame }}" data-alt="{{ ev(e.text) }}" data-caption="{{ ev(e.text) }}">
-          <img src="/media/{{ r.slug }}/{{ e.frame }}" alt="{{ t('frame_alt', t='%.1f' % (e.timestamp or 0)) }}" loading="lazy">
-          <span class="ts">{{ '%.1f' | format(e.timestamp or 0) }}s</span>
-        </a>
-        <figcaption><span class="txt"><span class="pill {{ e.direction.value }}" style="font-size: var(--fs-xs)">{{ t('clue_' ~ ('real' if e.direction.value == 'human' else e.direction.value)) }}</span> {{ ev(e.text) }}</span>
-          {% if (e.text | length) > 140 %}<button type="button" class="more" aria-expanded="false" data-more="{{ t('show_more') }}" data-less="{{ t('show_less') }}">{{ t('show_more') }}</button>{% endif %}
-        </figcaption>
-      </figure>
-      {% endfor %}
+    {% if framed %}<p class="sub">{{ t('zoom_hint') }}</p>{% endif %}
+    {# grouped by what each clue points to, the verdict's own side first #}
+    {% set order = ['human', 'ai', 'neutral'] if r.verdict.value == 'likely_human' else ['ai', 'human', 'neutral'] %}
+    {% for d in order %}
+    {% set g_loose = loose | selectattr('direction.value', 'equalto', d) | list %}
+    {% set g_framed = framed | selectattr('direction.value', 'equalto', d) | list %}
+    {% if g_loose or g_framed %}
+    <div class="group">
+      <h3 class="group-title"><span class="tag {{ d }}">{{ t('grp_' ~ d) }}</span> <span class="count">{{ (g_loose | length) + (g_framed | length) }}</span></h3>
+      {% if g_loose %}<ul class="clues">{% for e in g_loose %}<li class="{{ d }}">{{ ev(e.text) }}</li>{% endfor %}</ul>{% endif %}
+      {% if g_framed %}
+      <div class="frames">
+        {% for e in g_framed %}
+        <figure class="frame" data-t="{{ (e.timestamp or 0) | round(1) }}">
+          <a href="/media/{{ r.slug }}/{{ e.frame }}" data-img="/media/{{ r.slug }}/{{ e.frame }}" data-alt="{{ ev(e.text) }}" data-caption="{{ ev(e.text) }}" title="{{ ev(e.text) }}">
+            <img src="/media/{{ r.slug }}/{{ e.frame }}" alt="{{ t('frame_alt', t='%.1f' % (e.timestamp or 0)) }}" loading="lazy">
+            <span class="ts">{{ '%.1f' | format(e.timestamp or 0) }}s</span>
+          </a>
+          <figcaption><span class="txt">{{ ev(e.text) }}</span></figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
     {% endif %}
+    {% endfor %}
     {% if not framed and not loose %}<p class="muted">{{ t('no_clues') }}</p>{% endif %}
   </section>
 
@@ -154,10 +160,10 @@
         {% for s in r.signals %}
         <div class="signal">
           <strong>{{ t('sig_' ~ s.name) }}</strong>
-          <span>{% if not s.available %}<span class="pill">{{ t('not_available') }}</span>
-            {% elif s.direction.value == 'ai' %}<span class="pill ai">{{ t('points_ai') }}</span>
-            {% elif s.direction.value == 'human' %}<span class="pill human">{{ t('points_human') }}</span>
-            {% else %}<span class="pill">{{ t('neutral') }}</span>{% endif %}</span>
+          <span>{% if not s.available %}<span class="tag">{{ t('not_available') }}</span>
+            {% elif s.direction.value == 'ai' %}<span class="tag ai">{{ t('points_ai') }}</span>
+            {% elif s.direction.value == 'human' %}<span class="tag human">{{ t('points_human') }}</span>
+            {% else %}<span class="tag">{{ t('neutral') }}</span>{% endif %}</span>
           {% if s.note %}<p class="muted" style="margin:0; grid-column:1 / -1">{{ note(s.note) }}</p>{% endif %}
         </div>
         {% endfor %}
@@ -170,17 +176,9 @@
 {% endblock %}
 {% block scripts %}
 <script>
-  // Probability marker slides in from 0.
-  requestAnimationFrame(() => { const m = document.getElementById('marker'); m.style.left = m.dataset.target + '%'; });
-  // Count-up for the big number (no d3 on this page).
-  document.querySelectorAll('[data-countup]').forEach((el) => {
-    const target = +el.dataset.value; const start = performance.now();
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const step = (now) => { const k = Math.min(1, (now - start) / 1000); el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3))) + '%'; if (k < 1) requestAnimationFrame(step); };
-    requestAnimationFrame(step);
-  });
+  // numbers appear as they are: no count-up, no sliding marker
   // Lightbox for evidence frames.
-  const links = [...document.querySelectorAll('#frames a')];
+  const links = [...document.querySelectorAll('.frames a')];
   links.forEach((a) => {
     const img = a.querySelector('img');
     const size = () => { a.dataset.width = img.naturalWidth || 768; a.dataset.height = img.naturalHeight || 432; };
@@ -191,12 +189,7 @@
       (window._bp ||= BiggerPicture({ target: document.body })).open({ items: links, el: a });
     });
   });
-  // Long captions: clamp to three lines with a toggle.
-  document.querySelectorAll('.frame .more').forEach((b) => b.addEventListener('click', () => {
-    const open = b.parentElement.classList.toggle('open');
-    b.setAttribute('aria-expanded', String(open));
-    b.textContent = open ? b.dataset.less : b.dataset.more;
-  }));
+  // Captions show three lines; the full text is in the enlarged view.
   // Timeline: hover shows the clue, click scrolls to its frame.
   document.querySelectorAll('.timeline .mark').forEach((m) => {
     m.addEventListener('mouseenter', (ev) => tip.show(m.dataset.tip, ev));

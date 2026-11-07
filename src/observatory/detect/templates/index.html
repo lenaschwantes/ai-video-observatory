@@ -31,7 +31,8 @@
   .gcard img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: var(--r-sm); }
   .gcard .t { margin-top: 8px; font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .gcard:hover .t { text-decoration: underline; text-decoration-color: var(--axis); }
-  .gcard .pill { margin-top: 8px; }
+  .gcard .vlabel { display: flex; margin-top: 10px; } .gcard .vlabel b { font-size: var(--fs-2xl); line-height: 1; }
+  .gcard .t { color: var(--muted); font-size: var(--fs-sm); margin-top: 4px; }
 
   /* from link to verdict: steps on the left, the scale they lead to on the right */
   .flow { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 56px; margin-top: 24px; align-items: start; }
@@ -90,8 +91,8 @@
       {% for r in reports %}
       <a href="/report/{{ r.slug }}" class="gcard">
         {% if r.frames %}<img src="/media/{{ r.slug }}/{{ r.frames[0].file }}" alt="" loading="lazy">{% endif %}
+        <span class="vlabel {{ r.verdict.value }}"><b>{{ (r.probability * 100) | round | int }}%</b> · {{ (t('verdict_' ~ r.verdict.value)[:1] | lower) ~ t('verdict_' ~ r.verdict.value)[1:] }}</span>
         <div class="t">{{ r.video.title or r.slug }}</div>
-        <span class="pill {{ r.verdict.value }}">{{ t('verdict_' ~ r.verdict.value) }}</span>
       </a>
       {% endfor %}
     </div>

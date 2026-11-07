@@ -15,7 +15,7 @@
       <p class="muted" style="margin:0">{{ t('pending_body', videos=b.dataset.videos, ai=b.dataset.ai, real=b.dataset.real, br=b.dataset.br) }}</p></div>
     {% else %}
     <div class="hero-num reveal">
-      <span class="value" data-countup data-value="{{ (b.worst.fpr * 100) | round | int }}" data-suffix="%">{{ (b.worst.fpr * 100) | round | int }}%</span>
+      <span class="value">{{ (b.worst.fpr * 100) | round | int }}%</span>
       <span class="caption">
         {% if b.worst.real_flagged is not none and b.worst.n_real %}{{ t('hero_caption_n', k=b.worst.real_flagged, n=b.worst.n_real, name=b.worst.name) }}{% else %}{{ t('hero_caption', name=b.worst.name) }}{% endif %}<br>
         <span class="muted">{{ t('hero_best', name=b.best.name, value=((b.best.fpr * 100) | round | int | string) ~ '%') }}</span>
@@ -104,4 +104,4 @@
   </section>
 </div>
 {% endblock %}
-{% block scripts %}<script>document.querySelectorAll('[data-countup]').forEach((el) => window.d3 && countUp(el));</script>{% endblock %}
+

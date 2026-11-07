@@ -66,7 +66,7 @@ def test_ranking_renders_hero_from_benchmark(client, tmp_path, monkeypatch):
 def test_report_page_shows_evidence_and_timeline(client, tmp_path):
     _report(tmp_path)
     page = client.get("/report/youtube-x?lang=en").text
-    assert "Likely AI" in page and "hand merges" in page
+    assert "· likely AI" in page and "hand merges" in page
     assert 'class="mark ai"' in page and "left:40.0%" in page
 
 

@@ -142,10 +142,14 @@
     .error { margin-top: 12px; padding: 10px 14px; border-radius: var(--r-sm); background: var(--ai-wash); color: var(--ink); border-left: 3px solid var(--ai); }
 
     /* verdict pills */
-    /* verdict labels: colored words on a thin rule, no badge and no status dot */
-    .pill { display: inline-block; font-size: var(--fs-sm); font-weight: 600; line-height: 1.3; color: var(--ink-2); border-bottom: 2px solid currentColor; padding-bottom: 1px; white-space: nowrap; }
-    .pill.likely_ai, .pill.ai { color: var(--ai); }
-    .pill.likely_human, .pill.human { color: var(--human); }
+    /* verdict: the number and the word, in the verdict's color ("84% · provavelmente IA") */
+    /* only the number carries the verdict color; the words stay in the text color */
+    .vlabel { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--fs-sm); color: var(--ink-2); white-space: nowrap; }
+    .vlabel b { font-family: var(--serif); font-weight: 600; font-size: var(--fs-lg); font-variant-numeric: tabular-nums lining-nums; color: var(--ink-2); }
+    .vlabel.likely_ai b { color: var(--ai); } .vlabel.likely_human b { color: var(--human); }
+    /* clue and signal tags: one short colored word ("IA", "Real", "Nota") */
+    .tag { font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+    .tag.ai { color: var(--ai); } .tag.human { color: var(--human); }
 
     .js .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
     .js .reveal.in { opacity: 1; transform: none; }
