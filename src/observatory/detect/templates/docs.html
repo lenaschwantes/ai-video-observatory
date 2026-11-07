@@ -4,12 +4,12 @@
 <style>
   .docs { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; align-items: start; }
   @media (max-width: 860px) { .docs { grid-template-columns: 1fr; gap: 16px; } .docs nav.toc { position: static; } }
-  nav.toc { position: sticky; top: 80px; font-size: .88rem; }
+  nav.toc { position: sticky; top: 80px; font-size: var(--fs-sm); }
   nav.toc .pages a { display: block; padding: 6px 0; text-decoration: none; color: var(--ink-2); }
   nav.toc .pages a[aria-current="page"] { color: var(--ink); font-weight: 600; }
   nav.toc ol { list-style: none; padding: 0; margin: 12px 0 0; border-left: 1px solid var(--grid); }
   nav.toc li a { display: block; padding: 4px 0 4px 12px; text-decoration: none; color: var(--muted); }
-  nav.toc li.l3 a { padding-left: 24px; font-size: .82rem; }
+  nav.toc li.l3 a { padding-left: 24px; font-size: var(--fs-sm); }
   nav.toc li a:hover { color: var(--ink); }
   .md { max-width: 760px; min-width: 0; }
   .md h1 { margin-top: 0; }
@@ -17,7 +17,7 @@
   .md h3 { margin-top: 28px; scroll-margin-top: 72px; }
   .md code { font-size: .88em; background: var(--surface); border: 1px solid var(--grid); padding: 1px 5px; border-radius: var(--r-sm); }
   .md pre { background: var(--surface); border: 1px solid var(--ring); border-radius: var(--r-md); padding: 14px 16px; overflow-x: auto; }
-  .md pre code { border: 0; padding: 0; background: none; font-size: .85rem; }
+  .md pre code { border: 0; padding: 0; background: none; font-size: var(--fs-sm); }
   .md blockquote { margin: 16px 0; padding: 10px 16px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: var(--r-sm); color: var(--ink-2); }
   .md .table-wrap { margin: 16px 0; }
   .md img { max-width: 100%; }
@@ -42,7 +42,7 @@
         {% endif %}
       </nav>
       <article class="md">
-        {% if lang == 'pt' and html %}<p class="muted" style="font-size:.88rem">{{ docs_lang_note }}</p>{% endif %}
+        {% if lang == 'pt' and html %}<p class="muted" style="font-size: var(--fs-sm)">{{ docs_lang_note }}</p>{% endif %}
         {% if html %}{{ html | safe }}{% else %}
         <h1>{{ page_title }}</h1>
         <p class="dek">{{ missing }}</p>

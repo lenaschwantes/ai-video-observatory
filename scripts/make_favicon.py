@@ -12,7 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 OUT = Path(__file__).resolve().parents[1] / "src" / "observatory" / "detect" / "static"
-INK, PAGE, ACCENT = "#0b0b0b", "#f9f9f7", "#e5571f"
+INK, PAGE, ACCENT = "#1b1612", "#faf8f4", "#f4c430"
 
 # geometry on a 64-unit grid, shared by the SVG and the PNGs
 RADIUS = 15

@@ -31,7 +31,7 @@
 
   <section class="block reveal">
     <h2>{{ t('table_title') }}</h2>
-    <style>.ci { font-size: .75rem; white-space: nowrap; }</style>
+    <style>.ci { font-size: var(--fs-xs); white-space: nowrap; }</style>
     <div class="table-wrap" style="margin-top:16px">
       <table>
         <thead><tr>
@@ -44,7 +44,7 @@
         <tbody>
         {% for r in b.rows %}
           <tr>
-            <td><strong>{{ r.name }}</strong> <span class="muted" style="font-size:.8rem">{{ t('kind_' ~ r.kind) }} · <code>{{ r.model }}</code></span></td>
+            <td><strong>{{ r.name }}</strong> <span class="muted" style="font-size: var(--fs-xs)">{{ t('kind_' ~ r.kind) }} · <code>{{ r.model }}</code></span></td>
             <td class="num">{{ pct(r.fpr) }}{% if r.fpr_count %} <span class="muted">({{ r.fpr_count[0] }}/{{ r.fpr_count[1] }})</span>{% endif %}{% if r.fpr_ci %}<br><span class="ci muted">{{ pct(r.fpr_ci[0]) }}–{{ pct(r.fpr_ci[1]) }}</span>{% endif %}</td>
             <td class="num">{{ num(r.auc) }}{% if r.auc_ci %}<br><span class="ci muted">{{ num(r.auc_ci[0]) }}–{{ num(r.auc_ci[1]) }}</span>{% endif %}</td>
             <td class="num">{{ pct(r.recall) }}</td><td class="num">{{ pct(r.recall_zero_fp) }}</td><td class="num">{{ pct(r.missed) }}</td>
@@ -75,7 +75,7 @@
         <tbody>
         {% for r in b.robustness %}
           <tr>
-            <td><strong>{{ r.name }}</strong> <span class="muted" style="font-size:.8rem"><code>{{ r.model }}</code></span></td>
+            <td><strong>{{ r.name }}</strong> <span class="muted" style="font-size: var(--fs-xs)"><code>{{ r.model }}</code></span></td>
             <td><code>{{ r.variant }}</code></td>
             <td class="num">{% if r.ssim is not none %}SSIM {{ '%.2f' | format(r.ssim) }}{% else %}n/a{% endif %}{% if r.bitrate_ratio is not none %}<br><span class="ci muted">{{ pct(r.bitrate_ratio) }} {{ t('rob_of_bitrate') }}</span>{% endif %}</td>
             <td class="num">{{ pct(r.fpr_ref) }} → {{ pct(r.fpr) }}{% if r.fpr_delta_ci %}<br><span class="ci muted">Δ {{ pct(r.fpr_delta_ci[0]) }}…{{ pct(r.fpr_delta_ci[1]) }}</span>{% endif %}</td>
@@ -87,7 +87,7 @@
         </tbody>
       </table>
     </div>
-    <p class="muted" style="font-size:.88rem; max-width:68ch">{{ t('rob_read') }}</p>
+    <p class="muted" style="font-size: var(--fs-sm); max-width:68ch">{{ t('rob_read') }}</p>
   </section>
   {% endif %}
 

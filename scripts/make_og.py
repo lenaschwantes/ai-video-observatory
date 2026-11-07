@@ -22,8 +22,9 @@ SERIF = os.environ.get("OG_SERIF", str(FONTS / "georgiab.ttf"))
 SANS = os.environ.get("OG_SANS", str(FONTS / "segoeui.ttf"))
 SANS_BOLD = os.environ.get("OG_SANS_BOLD", str(FONTS / "segoeuib.ttf"))
 
-PAGE, INK, INK2, MUTED, RING = "#f9f9f7", "#0b0b0b", "#52514e", "#898781", "#dcdbd3"
-ACCENT, AI, AI_WASH, MID, HUMAN_WASH = "#c2410c", "#e34948", "#fbe4e3", "#ecebe6", "#e3eefb"
+PAGE, INK, INK2, MUTED, RING = "#faf8f4", "#1b1612", "#544c44", "#6e665d", "#e7e1d8"
+ACCENT, AI, AI_WASH, MID, HUMAN_WASH = "#8a5a00", "#c8392f", "#f8e4e1", "#efebe4", "#e3ecf7"
+HIGHLIGHT = "#f4c430"
 
 COPY = {
     "pt": {"kicker": "GRÁTIS · SEM CADASTRO", "headline": "Esse vídeo foi\nfeito com IA?",
@@ -57,7 +58,7 @@ def background() -> Image.Image:
     glow = Image.new("L", (1200, 630), 0)
     ImageDraw.Draw(glow).ellipse((620, -260, 1420, 520), fill=90)
     glow = glow.filter(ImageFilter.GaussianBlur(120))
-    return Image.composite(Image.new("RGB", img.size, "#f6c9b0"), img, glow)
+    return Image.composite(Image.new("RGB", img.size, "#f7e3a6"), img, glow)
 
 
 def card(c: dict) -> Image.Image:
@@ -91,23 +92,20 @@ def render(lang: str) -> None:
     img = background()
     d = ImageDraw.Draw(img)
     d.text((72, 64), c["brand"], font=serif(30), fill=INK, anchor="ls")
-    kf = sans(20, True)
-    kw = d.textlength(c["kicker"], font=kf) + 32
-    d.rounded_rectangle((72, 100, 72 + kw, 138), radius=19, fill="#ffffff", outline=RING, width=2)
-    d.text((88, 119), c["kicker"], font=kf, fill=ACCENT, anchor="lm")
+    d.text((72, 119), c["kicker"].capitalize(), font=sans(22), fill=MUTED, anchor="lm")
     d.multiline_text((72, 160), c["headline"], font=serif(76), fill=INK, spacing=8)
     d.multiline_text((72, 352), c["sub"], font=sans(28), fill=INK2, spacing=6)
     # the product in one picture: a link field and the check button
     d.rounded_rectangle((72, 470, 470, 546), radius=16, fill="#ffffff", outline="#c3c2b7", width=3)
     d.text((98, 508), c["paste"], font=sans(26), fill=MUTED, anchor="lm")
-    d.rounded_rectangle((484, 470, 650, 546), radius=16, fill=ACCENT)
-    d.text((567, 508), c["button"], font=sans(26, True), fill="#ffffff", anchor="mm")
+    d.rounded_rectangle((484, 470, 650, 546), radius=16, fill=HIGHLIGHT)
+    d.text((567, 508), c["button"], font=sans(26, True), fill=INK, anchor="mm")
 
     k = card(c)
     shadow = Image.new("RGBA", (k.width + 80, k.height + 80), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).rounded_rectangle((46, 56, k.width + 34, k.height + 46), radius=22, fill=(0, 0, 0, 55))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(22)).rotate(-2, resample=Image.BICUBIC, expand=True)
-    tilted = k.rotate(-2, resample=Image.BICUBIC, expand=True)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(22))
+    tilted = k  # straight, like the site
     img.paste(shadow, (722 - 40, 80 - 40), shadow)
     img.paste(tilted, (722, 80), tilted)
     # JPEG, well under WhatsApp's preview size limit (heavy images show no preview)

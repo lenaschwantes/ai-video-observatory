@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <style>
-    .bg { fill: #0b0b0b; } .br { fill: none; stroke: #f9f9f7; } .pl { fill: #e5571f; stroke: #e5571f; }
-    @media (prefers-color-scheme: dark) { .bg { fill: #f9f9f7; } .br { stroke: #0b0b0b; } }
+    .bg { fill: #1b1612; } .br { fill: none; stroke: #faf8f4; } .pl { fill: #f4c430; stroke: #f4c430; }
+    @media (prefers-color-scheme: dark) { .bg { fill: #faf8f4; } .br { stroke: #1b1612; } }
   </style>
   <rect class="bg" width="64" height="64" rx="15"/>
   <path class="br" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M13 23 L13 13 L23 13 M41 13 L51 13 L51 23 M51 41 L51 51 L41 51 M23 51 L13 51 L13 41"/>
