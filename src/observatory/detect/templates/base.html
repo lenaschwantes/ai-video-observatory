@@ -28,7 +28,7 @@
   <meta name="theme-color" content="#0b0b0b">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <script>
     // Mark JS as available (scroll reveals only hide content when JS can show it again),
     // then apply a saved theme before paint so there is no flash.
@@ -44,7 +44,9 @@
       --ai: #e34948; --ai-wash: #fbe9e8; --human: #2a78d6; --human-wash: #e6f0fb; --mid: #f0efec;
       --accent: #c2410c;
       --serif: "Fraunces", Georgia, "Times New Roman", serif;
-      --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+      /* three radii, nothing in between; pills stay round */
+      --r-sm: 6px; --r-md: 10px; --r-lg: 16px;
     }
     @media (prefers-color-scheme: dark) {
       :root:where(:not([data-theme="light"])) {
@@ -89,7 +91,8 @@
 
     /* type */
     .kicker { font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
-    h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.015em; line-height: 1.15; }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.015em; line-height: 1.15; text-wrap: balance; }
+    p { text-wrap: pretty; }
     h1 { font-size: clamp(2.1rem, 5.5vw, 3.6rem); margin: 10px 0 16px; }
     h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 0 0 6px; }
     h3 { font-size: 1.2rem; margin: 0 0 4px; }
@@ -105,7 +108,7 @@
     .hero-num .caption { max-width: 420px; font-size: 1.1rem; color: var(--ink-2); }
 
     /* charts (shared) */
-    .chart { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 20px; }
+    .chart { background: var(--surface); border: 1px solid var(--ring); border-radius: var(--r-md); padding: 20px; }
     .chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
     .seg { display: inline-flex; border: 1px solid var(--grid); border-radius: 999px; padding: 2px; }
     .seg button { border: 0; background: none; color: var(--ink-2); font: inherit; font-size: .82rem; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
@@ -113,14 +116,14 @@
     .legend[hidden] { display: none; }
     .legend { display: flex; gap: 16px; font-size: .82rem; color: var(--ink-2); flex-wrap: wrap; }
     .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
-    .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page); font-size: .8rem; padding: 6px 9px; border-radius: 6px; opacity: 0; transition: opacity .12s; z-index: 50; max-width: 260px; }
+    .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page); font-size: .8rem; padding: 6px 9px; border-radius: var(--r-sm); opacity: 0; transition: opacity .12s; z-index: 50; max-width: 260px; }
     svg text { fill: var(--ink-2); font-family: var(--sans); }
     svg .value-label { fill: var(--ink); font-weight: 600; }
     svg .tick line { stroke: var(--grid); }
     svg .domain { stroke: var(--axis); }
 
     /* tables */
-    .table-wrap { overflow-x: auto; border: 1px solid var(--ring); border-radius: 12px; background: var(--surface); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--ring); border-radius: var(--r-md); background: var(--surface); }
     table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
     th, td { text-align: left; padding: 10px 14px; border-top: 1px solid var(--grid); white-space: nowrap; }
     thead th { border-top: 0; color: var(--muted); font-weight: 500; font-size: .8rem; }
@@ -128,11 +131,11 @@
 
     /* forms */
     form.analyze { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
-    form.analyze input { flex: 1 1 300px; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--axis); background: var(--surface); color: var(--ink); font: inherit; }
+    form.analyze input { flex: 1 1 300px; padding: 14px 16px; border-radius: var(--r-md); border: 1px solid var(--axis); background: var(--surface); color: var(--ink); font: inherit; }
     form.analyze input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-    .btn { padding: 14px 22px; border: 0; border-radius: 10px; background: var(--ink); color: var(--page); font: inherit; font-weight: 600; cursor: pointer; }
+    .btn { padding: 14px 22px; border: 0; border-radius: var(--r-md); background: var(--ink); color: var(--page); font: inherit; font-weight: 600; cursor: pointer; }
     .btn[disabled] { opacity: .6; cursor: progress; }
-    .error { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--ai-wash); color: var(--ink); border-left: 3px solid var(--ai); }
+    .error { margin-top: 12px; padding: 10px 14px; border-radius: var(--r-sm); background: var(--ai-wash); color: var(--ink); border-left: 3px solid var(--ai); }
 
     /* verdict pills */
     .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; border: 1px solid var(--grid); white-space: nowrap; }

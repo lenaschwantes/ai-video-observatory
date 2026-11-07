@@ -11,17 +11,20 @@
   #analisar [hidden] { display: none !important; }
   .checker form.analyze { display: block; margin: 0; }  /* base.html makes forms flex rows */
   .checker form.analyze input { flex: initial; }
-  .checker { background: var(--surface); border: 1px solid var(--ring); border-radius: 18px; padding: 22px; box-shadow: 0 10px 40px -20px rgba(0,0,0,.25); }
+  /* the one raised element on the page: where you act */
+  .checker { background: var(--surface); border: 1px solid var(--ring); border-radius: var(--r-lg); padding: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 24px -16px rgba(0,0,0,.25); }
+  .checker > *:not(form), .checker form > *:not(.bar) { margin-left: 16px; margin-right: 16px; }
+  .checker form > :last-child, .checker > :last-child { margin-bottom: 14px; }
   .checker .bar { display: flex; gap: 10px; flex-wrap: wrap; }
-  .checker .bar input[type=url] { flex: 1 1 320px; font: inherit; font-size: 1.08rem; padding: 16px 18px; border-radius: 12px; border: 2px solid var(--axis); background: var(--page); color: var(--ink); }
+  .checker .bar input[type=url] { flex: 1 1 320px; font: inherit; font-size: 1.08rem; padding: 16px 18px; border-radius: var(--r-md); border: 1px solid var(--axis); background: var(--page); color: var(--ink); }
   .checker .bar input[type=url]:focus { border-color: var(--accent); outline: none; }
-  .checker .bar .btn { font-size: 1.05rem; padding: 16px 26px; border-radius: 12px; background: var(--accent); color: var(--page); }
+  .checker .bar .btn { font-size: 1.05rem; padding: 16px 26px; border-radius: var(--r-md); background: var(--accent); color: var(--page); }
   .checker .bar .btn[disabled] { opacity: .5; }
   .examples { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; font-size: .88rem; }
   .examples button { border: 1px solid var(--grid); background: var(--page); color: var(--ink-2); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; }
   .examples button:hover { border-color: var(--ink); color: var(--ink); }
   .trust { font-size: .85rem; color: var(--muted); margin: 12px 0 0; }
-  .partial { margin-top: 14px; font-size: .9rem; padding: 10px 14px; border-radius: 10px; background: var(--page); border: 1px solid var(--grid); }
+  .partial { margin-top: 14px; font-size: .9rem; padding: 10px 14px; border-radius: var(--r-sm); background: var(--page); border: 1px solid var(--grid); }
   .linkish { border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
   details.advanced { margin-top: 16px; border-top: 1px solid var(--grid); padding-top: 12px; }
   details.advanced > summary { cursor: pointer; color: var(--ink-2); font-size: .92rem; }
@@ -36,13 +39,13 @@
   .provs label { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--grid); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
   .provs input { accent-color: var(--accent); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  .row input, .row select { flex: 1 1 220px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--axis); background: var(--page); color: var(--ink); font: inherit; }
-  .btn-2 { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--ink); background: none; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+  .row input, .row select { flex: 1 1 220px; padding: 10px 12px; border-radius: var(--r-sm); border: 1px solid var(--axis); background: var(--page); color: var(--ink); font: inherit; }
+  .btn-2 { padding: 10px 14px; border-radius: var(--r-sm); border: 1px solid var(--ink); background: none; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
   .btn-2[disabled] { opacity: .55; }
   .keystate { font-size: .86rem; margin-top: 6px; }
   .keystate.ok { color: var(--human); } .keystate.bad { color: var(--ai); }
-  .adv-panel input[type=file] { width: 100%; padding: 10px; border: 1px dashed var(--axis); border-radius: 8px; margin-top: 6px; }
-  @media (max-width: 520px) { .checker { padding: 16px; } .checker .bar .btn { flex: 1 1 100%; } }
+  .adv-panel input[type=file] { width: 100%; padding: 10px; border: 1px dashed var(--axis); border-radius: var(--r-sm); margin-top: 6px; }
+  @media (max-width: 520px) { .checker .bar .btn { flex: 1 1 100%; } }
 </style>
 
 <div class="checker">
@@ -59,7 +62,7 @@
     <div class="examples"><span class="muted">{{ t('examples') }}</span>
       {% for ex in examples %}<button type="button" data-example="{{ ex.url }}">{{ ex[lang] }}</button>{% endfor %}
     </div>
-    <p class="trust">🔒 {{ t('home_trust') }}</p>
+    <p class="trust">{{ t('home_trust') }}</p>
   </form>
   <script>
     document.querySelectorAll('[data-example]').forEach((b) => b.addEventListener('click', () => {
@@ -84,7 +87,7 @@
     <div class="examples"><span class="muted">{{ t('examples') }}</span>
       {% for ex in examples %}<button type="button" data-example="{{ ex.url }}">{{ ex[lang] }}</button>{% endfor %}
     </div>
-    <p class="trust">🔒 {{ t('home_trust') }}</p>
+    <p class="trust">{{ t('home_trust') }}</p>
 
     {% if not host_vision %}
     <div class="partial" id="partial-note">{{ t('partial_note') }} <button type="button" class="linkish" data-open="key">{{ t('partial_cta') }}</button></div>
@@ -113,8 +116,8 @@
             </div>
             <div class="keystate" id="key-state" role="status" aria-live="polite"></div>
             <div class="row" id="model-row" hidden><select name="key_model" id="key-model" aria-label="{{ t('byok_model') }}"></select></div>
-            <p class="muted" style="font-size:.8rem; margin:8px 0 0">⚠️ {{ t('byok_model_matters') }} <a href="/benchmarks">{{ t('byok_model_matters_link') }}</a>.</p>
-            <p class="muted" style="font-size:.78rem; margin:6px 0 0">🔒 {{ t('byok_privacy') }}</p>
+            <p class="muted" style="font-size:.8rem; margin:8px 0 0">{{ t('byok_model_matters') }} <a href="/benchmarks">{{ t('byok_model_matters_link') }}</a>.</p>
+            <p class="muted" style="font-size:.78rem; margin:6px 0 0">{{ t('byok_privacy') }}</p>
           </div></li>
         </ol>
       </div>

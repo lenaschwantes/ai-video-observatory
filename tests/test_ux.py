@@ -57,10 +57,12 @@ def test_key_check_validates_input_and_is_rate_limited(client, monkeypatch):
 def test_home_puts_the_check_first_in_plain_language(client, monkeypatch):
     monkeypatch.setattr(web, "host_provider", lambda: "groq")
     page = client.get("/?lang=pt").text
-    assert page.index("Esse vídeo foi feito com IA?") < page.index('id="video-url"') < page.index('class="example"') < page.index("<h2>Como funciona")
+    assert page.index("Esse vídeo foi feito com IA?") < page.index('id="video-url"') < page.index('class="example"') < page.index("<h2>Do link ao veredito")
     # the hero shows what a result looks like, with real clues, before anyone types
     assert "Exemplo de resultado" in page and "84%" in page and "texto no relógio" in page
-    assert page.count("<svg") >= 3
+    # no generated-site tells: no glow gradient, no emoji icons, no three-card row
+    for tell in ("radial-gradient", "🔒", "🔎", "steps3", "pill-kicker"):
+        assert tell not in page, tell
     assert "Verificar vídeo" in page and "Primeiro vídeo do YouTube (2005)" in page
     # technical paths stay available, folded away
     assert '<details class="advanced"' in page and 'id="key-check"' in page and "kernels/welcome?src=" in page

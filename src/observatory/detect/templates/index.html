@@ -7,101 +7,82 @@
   .spin { width: 14px; height: 14px; border: 2px solid var(--grid); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* hero: the action on the left, what you get on the right */
-  .hero-band { position: relative; overflow: hidden; border-bottom: 1px solid var(--grid); }
-  .hero-band::before { content: ""; position: absolute; inset: -40% -10% auto auto; width: 70%; height: 140%;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 16%, transparent), transparent); pointer-events: none; }
-  .hero { position: relative; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 48px; align-items: center; padding: 56px 0 64px; }
-  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 32px; padding: 36px 0 44px; } }
-  .hero .pill-kicker { display: inline-block; font-size: .8rem; font-weight: 600; color: var(--accent); background: var(--surface); border: 1px solid var(--grid); border-radius: 999px; padding: 4px 12px; }
-  .hero h1 { font-size: clamp(2.4rem, 6vw, 4.1rem); margin: 14px 0 12px; }
-  .hero .sub { font-size: 1.12rem; color: var(--ink-2); max-width: 560px; margin: 0 0 24px; }
+  /* top: the action on the left, a real result on the right; flat, no glow */
+  .hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 56px; align-items: end; padding: 48px 0 56px; border-bottom: 1px solid var(--grid); }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 36px; padding: 28px 0 40px; } }
+  .hero h1 { font-size: clamp(2.4rem, 6vw, 4.1rem); margin: 0 0 14px; max-width: 12ch; }
+  .hero .sub { font-size: 1.12rem; color: var(--ink-2); max-width: 520px; margin: 0 0 28px; }
 
-  /* example result card */
-  .example { background: var(--surface); border: 1px solid var(--ring); border-radius: 18px; overflow: hidden; box-shadow: 0 24px 60px -30px rgba(0,0,0,.35); transform: rotate(.8deg); }
-  @media (max-width: 900px) { .example { transform: none; } }
-  .example .ex-label { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: var(--muted); padding: 12px 18px; border-bottom: 1px solid var(--grid); display: flex; justify-content: space-between; }
+  /* example result: an excerpt of a report, not a floating card */
+  .example { border-top: 3px solid var(--ai); padding-top: 14px; }
+  .example .ex-label { font-size: .78rem; color: var(--muted); margin: 0 0 10px; }
   .example .thumb { position: relative; display: block; }
-  .example .thumb img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
-  .example .thumb .pct { position: absolute; right: 12px; bottom: 12px; background: var(--ai); color: #fff; font-weight: 800; font-size: 1.4rem; padding: 4px 12px; border-radius: 10px; }
-  .example .body { padding: 16px 18px 18px; }
-  .example h3 { font-size: 1.25rem; margin: 10px 0 8px; }
-  .mini-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; margin: 4px 0 12px; position: relative; }
-  .mini-bar div { height: 100%; } .mini-bar .h { background: var(--human-wash); } .mini-bar .i { background: var(--mid); } .mini-bar .a { background: var(--ai-wash); }
-  .mini-bar .m { position: absolute; top: -4px; width: 3px; height: 16px; background: var(--ink); border-radius: 2px; }
-  .example ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; font-size: .92rem; }
-  .example li { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: baseline; }
-  .example li .ts { font-variant-numeric: tabular-nums; font-size: .75rem; font-weight: 700; color: var(--ai); background: var(--ai-wash); border-radius: 6px; padding: 1px 6px; }
+  .example .thumb img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: var(--r-sm); }
+  .example .pct { font-family: var(--serif); font-size: 3rem; line-height: 1; font-weight: 600; color: var(--ai); margin: 14px 0 2px; }
+  .example h3 { font-size: 1.1rem; margin: 0 0 12px; }
+  .example ul { list-style: none; padding: 0; margin: 0; font-size: .92rem; border-top: 1px solid var(--grid); }
+  .example li { display: grid; grid-template-columns: 3.4em 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--grid); }
+  .example li .ts { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .example .more { display: inline-block; margin-top: 10px; font-size: .9rem; }
 
-  /* real examples */
-  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 18px; }
-  .gcard { display: block; text-decoration: none; background: var(--surface); border: 1px solid var(--ring); border-radius: 14px; overflow: hidden; transition: transform .15s, box-shadow .15s; }
-  .gcard:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -20px rgba(0,0,0,.4); }
-  .gcard img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
-  .gcard div { padding: 12px 14px 14px; }
-  .gcard .t { margin-top: 8px; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* checked videos: images and captions, no boxes */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 28px 20px; margin-top: 20px; }
+  .gcard { display: block; text-decoration: none; }
+  .gcard img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: var(--r-sm); }
+  .gcard .t { margin-top: 8px; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gcard:hover .t { text-decoration: underline; text-decoration-color: var(--axis); }
+  .gcard .pill { margin-top: 8px; }
 
-  /* how it works, in one band */
-  .steps3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 22px; }
-  @media (max-width: 760px) { .steps3 { grid-template-columns: 1fr; gap: 18px; } }
-  .step .ic { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); }
-  .step h3 { margin: 12px 0 4px; } .step p { margin: 0; color: var(--ink-2); font-size: .95rem; }
-  .scale { margin-top: 36px; background: var(--surface); border: 1px solid var(--ring); border-radius: 14px; padding: 18px 20px; }
-  .scale .zones { display: grid; grid-template-columns: 25fr 50fr 25fr; gap: 3px; }
-  .scale .zones > div { padding: 12px 14px; border-radius: 8px; font-size: .9rem; }
-  .scale .zh { background: var(--human-wash); } .scale .zi { background: var(--mid); } .scale .za { background: var(--ai-wash); }
-  .scale strong { display: block; margin-bottom: 2px; }
-  @media (max-width: 640px) { .scale .zones { grid-template-columns: 1fr; } }
+  /* from link to verdict: steps on the left, the scale they lead to on the right */
+  .flow { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 56px; margin-top: 24px; align-items: start; }
+  @media (max-width: 860px) { .flow { grid-template-columns: 1fr; gap: 36px; } }
+  .flow ol { list-style: none; counter-reset: n; padding: 0; margin: 0; }
+  .flow ol li { counter-increment: n; display: grid; grid-template-columns: 2.2rem 1fr; gap: 4px 12px; padding: 0 0 22px; }
+  .flow ol li::before { content: counter(n); grid-row: span 2; font-family: var(--serif); font-size: 1.6rem; line-height: 1.1; color: var(--accent); }
+  .flow ol li strong { font-weight: 600; }
+  .flow ol li span { color: var(--ink-2); font-size: .95rem; }
+  .scale h3 { margin: 0 0 14px; }
+  .scale .bar { display: grid; grid-template-columns: 25fr 50fr 25fr; gap: 3px; height: 10px; }
+  .scale .bar div { border-radius: 2px; } .scale .zh { background: var(--human); } .scale .zi { background: var(--axis); } .scale .za { background: var(--ai); }
+  .scale .ticks { display: grid; grid-template-columns: 25fr 50fr 25fr; font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; margin: 4px 0 18px; }
+  .scale .ticks span:nth-child(2) { text-align: center; } .scale .ticks span:last-child { text-align: right; }
+  .scale dl { margin: 0; display: grid; gap: 12px; }
+  .scale dt { font-weight: 600; } .scale dd { margin: 0; color: var(--ink-2); font-size: .95rem; }
+  .scale .note { margin: 18px 0 0; font-size: .88rem; color: var(--muted); }
 
-  .research { display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--ink); color: var(--page); border-radius: 18px; padding: 26px 28px; }
-  .research h2 { margin: 0 0 4px; font-size: 1.45rem; color: var(--page); }
-  .research p { margin: 0; opacity: .8; max-width: 560px; }
-  .research .btn { background: var(--page); color: var(--ink); }
+  .research { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 40px; align-items: end; }
+  @media (max-width: 700px) { .research { grid-template-columns: 1fr; } }
+  .research p { margin: 0; color: var(--ink-2); max-width: 600px; }
+  .research a { font-weight: 600; white-space: nowrap; }
 </style>
 {% endblock %}
-{% macro icon(name) %}
-{%- if name == 'link' -%}<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>
-{%- elif name == 'scan' -%}<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="11" cy="11" r="3.5"/><path d="m16 16-2.5-2.5"/></svg>
-{%- else -%}<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-{%- endif -%}
-{% endmacro %}
 {% block content %}
 {% set ex = hero_example %}
-<div class="hero-band">
-  <div class="wrap">
-    <section class="hero">
-      <div>
-        <span class="pill-kicker">{{ t('home_kicker') }}</span>
-        <h1>{{ t('home_title') }}</h1>
-        <p class="sub">{{ t('home_sub') }}</p>
-        <div id="analisar">
-          {% include "_analyzer.html" %}
-          {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
-        </div>
-      </div>
-
-      <aside class="example" aria-label="{{ t('ex_label') }}">
-        <div class="ex-label"><span>{{ t('ex_label') }}</span><span>{{ ex.title[lang] }}</span></div>
-        <a class="thumb" href="{{ '/report/' ~ ex.slug if hero_example_local else ex.url }}" {% if not hero_example_local %}target="_blank" rel="noopener noreferrer"{% endif %}>
-          <img src="{{ '/media/' ~ ex.slug ~ '/' ~ ex.frame if hero_example_local else ex.thumb }}" alt="{{ ex.title[lang] }}" loading="eager" referrerpolicy="no-referrer">
-          <span class="pct">{{ (ex.probability * 100) | round | int }}%</span>
-        </a>
-        <div class="body">
-          <span class="pill {{ ex.verdict }}">{{ t('verdict_' ~ ex.verdict) }}</span>
-          <h3>{{ t('verdict_sentence_' ~ ex.verdict) }}</h3>
-          <div class="mini-bar" aria-hidden="true"><div class="h" style="width:25%"></div><div class="i" style="width:50%"></div><div class="a" style="flex:1"></div>
-            <span class="m" style="left:{{ (ex.probability * 100) | round | int }}%"></span></div>
-          <ul>
-            {% for dir, ts, text in ex.clues %}<li><span class="ts">{{ '%.1f' | format(ts) }}s</span><span>{{ text[lang] }}</span></li>{% endfor %}
-          </ul>
-          {% if hero_example_local %}<p style="margin:12px 0 0; font-size:.88rem"><a href="/report/{{ ex.slug }}">{{ t('ex_full') }} →</a></p>{% endif %}
-        </div>
-      </aside>
-    </section>
-  </div>
-</div>
-
 <div class="wrap">
+  <section class="hero">
+    <div>
+      <h1>{{ t('home_title') }}</h1>
+      <p class="sub">{{ t('home_sub') }}</p>
+      <div id="analisar">
+        {% include "_analyzer.html" %}
+        {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+      </div>
+    </div>
+
+    <aside class="example" aria-label="{{ t('ex_label') }}">
+      <p class="ex-label">{{ t('ex_label') }}: {{ ex.title[lang] }}</p>
+      <a class="thumb" href="{{ '/report/' ~ ex.slug if hero_example_local else ex.url }}" {% if not hero_example_local %}target="_blank" rel="noopener noreferrer"{% endif %}>
+        <img src="{{ '/media/' ~ ex.slug ~ '/' ~ ex.frame if hero_example_local else ex.thumb }}" alt="{{ ex.title[lang] }}" loading="eager" referrerpolicy="no-referrer">
+      </a>
+      <p class="pct">{{ (ex.probability * 100) | round | int }}%</p>
+      <h3>{{ t('verdict_sentence_' ~ ex.verdict) }}</h3>
+      <ul>
+        {% for dir, ts, text in ex.clues %}<li><span class="ts">{{ '%.1f' | format(ts) }}s</span><span>{{ text[lang] }}</span></li>{% endfor %}
+      </ul>
+      {% if hero_example_local %}<a class="more" href="/report/{{ ex.slug }}">{{ t('ex_full') }} →</a>{% endif %}
+    </aside>
+  </section>
+
   {% if reports %}
   <section class="block reveal">
     <h2>{{ t('examples_real') }}</h2>
@@ -109,8 +90,8 @@
       {% for r in reports %}
       <a href="/report/{{ r.slug }}" class="gcard">
         {% if r.frames %}<img src="/media/{{ r.slug }}/{{ r.frames[0].file }}" alt="" loading="lazy">{% endif %}
-        <div><span class="pill {{ r.verdict.value }}">{{ t('verdict_' ~ r.verdict.value) }}</span>
-          <div class="t">{{ r.video.title or r.slug }}</div></div>
+        <div class="t">{{ r.video.title or r.slug }}</div>
+        <span class="pill {{ r.verdict.value }}">{{ t('verdict_' ~ r.verdict.value) }}</span>
       </a>
       {% endfor %}
     </div>
@@ -119,26 +100,28 @@
 
   <section class="block reveal">
     <h2>{{ t('how_simple_title') }}</h2>
-    <div class="steps3">
-      {% for ic, n in [('link', 1), ('scan', 2), ('shield', 3)] %}
-      <div class="step"><div class="ic">{{ icon(ic) }}</div><h3>{{ t('how_s%d_t' % n) }}</h3><p>{{ t('how_s%d_b' % n) }}</p></div>
-      {% endfor %}
-    </div>
-    <div class="scale">
-      <strong style="display:block; margin-bottom:10px">{{ t('read_title') }}</strong>
-      <div class="zones">
-        <div class="zh"><strong>{{ t('read_real_t') }}</strong>{{ t('read_real_b') }}</div>
-        <div class="zi"><strong>{{ t('read_unsure_t') }}</strong>{{ t('read_unsure_b') }}</div>
-        <div class="za"><strong>{{ t('read_ai_t') }}</strong>{{ t('read_ai_b') }}</div>
+    <div class="flow">
+      <ol>
+        {% for n in (1, 2, 3) %}<li><strong>{{ t('how_s%d_t' % n) }}</strong><span>{{ t('how_s%d_b' % n) }}</span></li>{% endfor %}
+      </ol>
+      <div class="scale">
+        <h3>{{ t('read_title') }}</h3>
+        <div class="bar" aria-hidden="true"><div class="zh"></div><div class="zi"></div><div class="za"></div></div>
+        <div class="ticks" aria-hidden="true"><span>0–{{ (human_threshold * 100) | int }}%</span><span>{{ (human_threshold * 100) | int }}–{{ (ai_threshold * 100) | int }}%</span><span>{{ (ai_threshold * 100) | int }}–100%</span></div>
+        <dl>
+          <div><dt>{{ t('read_real_t') }}</dt><dd>{{ t('read_real_b') }}</dd></div>
+          <div><dt>{{ t('read_unsure_t') }}</dt><dd>{{ t('read_unsure_b') }}</dd></div>
+          <div><dt>{{ t('read_ai_t') }}</dt><dd>{{ t('read_ai_b') }}</dd></div>
+        </dl>
+        <p class="note">{{ t('read_note') }}</p>
       </div>
-      <p class="muted" style="margin:12px 0 0; font-size:.88rem">{{ t('read_note') }}</p>
     </div>
   </section>
 
   <section class="block reveal">
     <div class="research">
       <div><h2>{{ t('research_t') }}</h2><p>{{ t('research_b') }}</p></div>
-      <a class="btn" href="/benchmarks" style="text-decoration:none">{{ t('research_cta') }} →</a>
+      <a href="/benchmarks">{{ t('research_cta') }} →</a>
     </div>
   </section>
 </div>
