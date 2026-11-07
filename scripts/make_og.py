@@ -1,12 +1,12 @@
 """Render the link-preview images (1200x630) shown when the site is shared
 on LinkedIn, WhatsApp or X: the question on the left, a real result on the right.
 
-Needs Pillow. Headings use Fraunces (the site's heading font): pass the TTF via
-OG_SERIF, e.g. the variable font from github.com/google/fonts (ofl/fraunces).
-Without it, falls back to Georgia Bold. Body text uses Segoe UI (Windows) or
-OG_SANS / OG_SANS_BOLD.
+Needs Pillow. Uses the site's fonts when given: Fraunces for headings (OG_SERIF)
+and Geist for text (OG_SANS and OG_SANS_BOLD, the same variable file), both from
+github.com/google/fonts (ofl/fraunces, ofl/geist). Without them it falls back to
+Georgia Bold and Segoe UI.
 
-Run: OG_SERIF=path/to/Fraunces.ttf python scripts/make_og.py
+Run: OG_SERIF=Fraunces.ttf OG_SANS=Geist.ttf OG_SANS_BOLD=Geist.ttf python scripts/make_og.py
 """
 
 import os
@@ -50,7 +50,12 @@ def serif(size: int) -> ImageFont.FreeTypeFont:
 
 
 def sans(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(SANS_BOLD if bold else SANS, size)
+    font = ImageFont.truetype(SANS_BOLD if bold else SANS, size)
+    try:  # variable Geist: one file, pick the weight
+        font.set_variation_by_name("SemiBold" if bold else "Regular")
+    except (OSError, ValueError, AttributeError):
+        pass
+    return font
 
 
 def background() -> Image.Image:
