@@ -190,3 +190,43 @@ def test_fetch_local_rejects_bad_files(tmp_path, name):
         (tmp_path / name).write_text("x")
     with pytest.raises(FetchError):
         fetch_local(tmp_path / name)
+
+
+# --- vision quota: fail the analysis, never cache a report without the visual check ---
+
+
+class _Quota(Exception):
+    status_code = 429
+
+
+def test_visual_signal_raises_on_quota_and_hides_raw_errors(tmp_path):
+    from observatory.detect.models import Frame
+    from observatory.detect.vision import VisionQuotaError, visual_signal
+
+    frames = [Frame(index=0, timestamp=1.0, file="f.jpg")]
+
+    def over_quota(frames, frame_dir):
+        raise _Quota("Rate limit reached ... tokens per day (TPD)")
+
+    with pytest.raises(VisionQuotaError):
+        visual_signal(frames, tmp_path, assessor=over_quota)
+
+    def broken(frames, frame_dir):
+        raise RuntimeError("provider said: bad request for key gsk_secret_123")
+
+    s = visual_signal(frames, tmp_path, assessor=broken)
+    assert not s.available and "gsk_secret_123" not in s.note and "RuntimeError" in s.note
+
+
+def test_quota_mid_analysis_leaves_no_cached_report(tmp_path):
+    from observatory.detect.vision import VisionQuotaError
+
+    def fake_fetch(url, workdir):
+        return info(title="clip"), make_video(workdir / "x.mp4")
+
+    def over_quota(frames, frame_dir):
+        raise _Quota("429 Too Many Requests")
+
+    with pytest.raises(VisionQuotaError):
+        analyze("https://www.youtube.com/shorts/x", tmp_path, fetcher=fake_fetch, assessor=over_quota)
+    assert not list(tmp_path.glob("*/report.json")) and not list(tmp_path.glob("*/*.jpg"))

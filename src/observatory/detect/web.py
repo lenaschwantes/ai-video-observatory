@@ -31,7 +31,14 @@ from observatory.detect import docs, i18n
 from observatory.detect.fetch import MAX_BYTES, VIDEO_SUFFIXES, FetchError, check_url
 from observatory.detect.models import Report
 from observatory.detect.pipeline import AI_THRESHOLD, HUMAN_THRESHOLD, analyze, analyze_file, load_report
-from observatory.detect.vision import PROVIDERS, assess, assess_with, list_vision_models, provider as host_provider
+from observatory.detect.vision import (
+    PROVIDERS,
+    VisionQuotaError,
+    assess,
+    assess_with,
+    list_vision_models,
+)
+from observatory.detect.vision import provider as host_provider
 
 ROOT = Path(__file__).resolve().parents[3]
 REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", "data/reports"))
@@ -458,6 +465,18 @@ def friendly_error(message: str, pt: bool) -> str:
             else "We could not analyze this video. Try again shortly or use another link.")
 
 
+def quota_message(byok: BYOK | None, pt: bool) -> str:
+    """The vision provider ran out of quota. On the site's own key that is the
+    shared free tier for the day, so point to the visitor's own free key."""
+    if byok:
+        return ("Sua chave atingiu o limite do plano do provedor. Tente daqui a pouco ou use a chave de outro provedor." if pt
+                else "Your key hit the provider's plan limit. Try again shortly or use a key from another provider.")
+    return ("A cota gratuita de análise do site acabou por agora. Use sua própria chave gratuita do Groq ou do Gemini "
+            "em Opções avançadas: leva um minuto para criar." if pt
+            else "The site's free analysis quota is used up for now. Use your own free Groq or Gemini key under "
+                 "Advanced options: it takes a minute to create.")
+
+
 def _assessor_for(byok: BYOK | None, language: str):
     """The visual check in the visitor's language, on their key if they gave one."""
     return byok.assessor(language) if byok else partial(assess, language=language)
@@ -475,6 +494,8 @@ def _start_job(url: str, byok: BYOK | None = None, upload: Path | None = None, l
         try:
             report = _run(url, upload, progress=lambda s: job.update(stage=s), **kwargs)
             job.update(stage="done", slug=report.slug)
+        except VisionQuotaError:
+            job.update(stage="error", error=quota_message(byok, language == "pt"))
         except Exception as exc:  # shown to the visitor as one plain sentence
             msg = byok.scrub(str(exc)) if byok else str(exc)
             job.update(stage="error", error=friendly_error(msg, language == "pt"))
@@ -564,6 +585,8 @@ def run_analysis(
         report = _run(url, upload, assessor=_assessor_for(byok, _lang(request)))
     except FetchError as exc:
         return fail(friendly_error(byok.scrub(str(exc)) if byok else str(exc), pt), 422)
+    except VisionQuotaError:
+        return fail(quota_message(byok, pt), 429)
     finally:
         _job_slots.release()
     return RedirectResponse(f"/report/{report.slug}", status_code=303)

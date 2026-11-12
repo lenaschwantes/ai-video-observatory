@@ -99,12 +99,16 @@ def _analyze_locked(video, video_path: Path, out_dir: Path, assessor, progress) 
                fingerprint_signal(video, video_path)]
     progress("visual")
     # the model call waits on the network; OCR and optical flow run on the CPU meanwhile
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        visual = pool.submit(visual_signal, frames, out_dir, assessor=assessor)
-        text_in_frames = pool.submit(frame_text_signal, frames, out_dir)
-        motion = pool.submit(motion_signal, video_path, out_dir)
-        motion_result, pair = motion.result()
-        signals += [visual.result(), text_in_frames.result(), motion_result]
+    try:
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            visual = pool.submit(visual_signal, frames, out_dir, assessor=assessor)
+            text_in_frames = pool.submit(frame_text_signal, frames, out_dir)
+            motion = pool.submit(motion_signal, video_path, out_dir)
+            motion_result, pair = motion.result()
+            signals += [visual.result(), text_in_frames.result(), motion_result]
+    except BaseException:
+        shutil.rmtree(out_dir, ignore_errors=True)  # no half-written report left behind
+        raise
     if pair is not None:
         frames = [*frames, pair]
 

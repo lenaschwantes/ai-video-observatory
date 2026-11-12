@@ -33,6 +33,7 @@ from observatory.bench.metrics import (
     score,
 )
 from observatory.detect.models import Frame
+from observatory.detect.vision import is_quota_error  # noqa: F401  (re-exported for tests)
 
 ROOT = Path(__file__).resolve().parents[3]
 DATASET = ROOT / "eval" / "dataset.csv"
@@ -102,23 +103,9 @@ def _read_jsonl(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-QUOTA_HINTS = ("per day", "daily", "tpd", "rpd", "perday", "quota", "resource_exhausted", "resource exhausted",
-               "rate limit", "rate_limit", "usage_limit", "too many requests")
-
-
 class QuotaReached(RuntimeError):
     """The provider refused for rate or quota after its own retries. The run
     stops without recording the row, so the next run picks it up."""
-
-
-def is_quota_error(exc: BaseException) -> bool:
-    """429s and quota messages, across SDKs: Groq/OpenAI (status_code),
-    google-genai (code / RESOURCE_EXHAUSTED), plain HTTP errors from httpx."""
-    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
-    response = getattr(exc, "response", None)
-    status = status or getattr(response, "status_code", None)
-    text = str(exc).lower()
-    return status == 429 or re.search(r"\b429\b", text) is not None or any(h in text for h in QUOTA_HINTS)
 
 
 def run(provider: str, model: str, rows: list[dict], cache: Path = CACHE, results: Path = RESULTS,

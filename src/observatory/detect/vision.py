@@ -268,6 +268,28 @@ def assess(frames: list[Frame], frame_dir: Path, language: str = "en") -> Visual
     return assess_with(name, model, frames, frame_dir, language=language)[0]
 
 
+QUOTA_HINTS = ("per day", "daily", "tpd", "rpd", "perday", "quota", "resource_exhausted", "resource exhausted",
+               "rate limit", "rate_limit", "usage_limit", "too many requests")
+
+
+class VisionQuotaError(RuntimeError):
+    """The vision provider refused for rate or quota after its own retries.
+    Raised instead of degrading the report: a report without the visual check
+    would be cached and served to the next visitor as if it were complete."""
+
+
+def is_quota_error(exc: BaseException) -> bool:
+    """429s and quota messages, across SDKs: Groq/OpenAI (status_code),
+    google-genai (code / RESOURCE_EXHAUSTED), plain HTTP errors from httpx."""
+    import re
+
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    response = getattr(exc, "response", None)
+    status = status or getattr(response, "status_code", None)
+    text = str(exc).lower()
+    return status == 429 or re.search(r"\b429\b", text) is not None or any(h in text for h in QUOTA_HINTS)
+
+
 def visual_signal(frames: list[Frame], frame_dir: Path, assessor=assess) -> Signal:
     label = "Visual analysis of keyframes"
     if not frames:
@@ -278,7 +300,10 @@ def visual_signal(frames: list[Frame], frame_dir: Path, assessor=assess) -> Sign
     try:
         result = assessor(frames, frame_dir)
     except Exception as exc:
-        return Signal(name="visual", label=label, available=False, note=f"Visual analysis failed: {exc}")
+        if is_quota_error(exc):
+            raise VisionQuotaError("vision provider quota reached") from exc
+        # the raw message can quote the provider's response (or a visitor's key), and reports are public
+        return Signal(name="visual", label=label, available=False, note=f"Visual analysis failed ({type(exc).__name__}).")
 
     p = min(max(result.ai_likelihood, 0.02), 0.98)
     by_index = {f.index: f for f in frames}

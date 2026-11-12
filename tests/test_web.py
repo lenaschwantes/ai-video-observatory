@@ -281,3 +281,21 @@ def test_missing_benchmark_report_shows_a_note(client, tmp_path, monkeypatch):
     monkeypatch.setattr(docs, "ROOT", tmp_path)
     page = client.get("/docs/benchmarks?lang=pt").text
     assert "ainda não existe" in page
+
+
+@pytest.mark.parametrize("with_key, expected", [
+    (False, "Use sua própria chave gratuita"),  # the site's shared free tier ran out
+    (True, "Sua chave atingiu o limite"),  # the visitor's own key ran out
+])
+def test_vision_quota_points_to_the_right_way_out(client, monkeypatch, with_key, expected):
+    from observatory.detect.vision import VisionQuotaError
+
+    def over_quota(url, reports_dir, progress, assessor=None):
+        raise VisionQuotaError("vision provider quota reached")
+
+    monkeypatch.setattr(web, "analyze", over_quota)
+    data = {"url": "https://www.youtube.com/watch?v=x"}
+    if with_key:
+        data |= {"key_provider": "groq", "api_key": SECRET}
+    _, status = _run_job(client, data)
+    assert expected in status.text
