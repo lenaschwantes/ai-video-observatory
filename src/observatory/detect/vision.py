@@ -85,6 +85,7 @@ class ProviderSpec:
     model_env: str
     default_model: str | None
     max_images: int | None  # per request; frames are batched above this
+    byok: bool = True  # offered in the site's "use my own key" form
 
 
 PROVIDERS: dict[str, ProviderSpec] = {
@@ -93,7 +94,14 @@ PROVIDERS: dict[str, ProviderSpec] = {
     # No defaults: model names change often, set the one you want to test.
     "openai": ProviderSpec(("OPENAI_API_KEY",), "OPENAI_VISION_MODEL", None, None),
     "gemini": ProviderSpec(("GEMINI_API_KEY", "GOOGLE_API_KEY"), "GEMINI_VISION_MODEL", None, None),
+    # An open model on your own machine or a free cloud GPU, through Ollama's
+    # OpenAI-compatible API. No key: OLLAMA_HOST says where it runs. Never in
+    # the visitor form: the site must not call hosts a visitor names.
+    "ollama": ProviderSpec(("OLLAMA_HOST",), "OLLAMA_VISION_MODEL", None, 4, byok=False),
 }
+
+BYOK_PROVIDERS = {name: spec for name, spec in PROVIDERS.items() if spec.byok}
+OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT", "900"))  # a CPU can take minutes per batch
 
 
 def _clean_keys() -> None:
@@ -122,8 +130,8 @@ def provider() -> str | None:
     forced = os.environ.get("VISION_PROVIDER")
     if forced:
         return forced
-    for name in ("groq", "anthropic"):
-        if has_key(name):
+    for name in ("groq", "anthropic", "ollama"):
+        if has_key(name) and model_for(name):
             return name
     return None
 
@@ -205,6 +213,29 @@ def _call_openai(model: str, frames: list[Frame], frame_dir: Path, api_key: str 
     return _parse(completion.choices[0].message.content or ""), Usage(u.prompt_tokens, u.completion_tokens, 1)
 
 
+def _ollama_base() -> str:
+    host = os.environ.get("OLLAMA_HOST", "").strip() or "http://localhost:11434"
+    if "://" not in host:  # Ollama itself accepts a bare host:port here
+        host = f"http://{host}"
+    return host.rstrip("/") + "/v1"
+
+
+def _call_ollama(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None,
+                 language: str = "en") -> tuple[VisualAssessment, Usage]:
+    from openai import OpenAI
+
+    # The OpenAI SDK insists on a key; Ollama ignores it.
+    client = OpenAI(base_url=_ollama_base(), api_key="ollama", max_retries=1, timeout=OLLAMA_TIMEOUT)
+    completion = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": _openai_style_content(frames, frame_dir, language)}],
+        response_format={"type": "json_object"},
+    )
+    u = completion.usage
+    usage = Usage(u.prompt_tokens, u.completion_tokens, 1) if u else Usage(calls=1)
+    return _parse(completion.choices[0].message.content or ""), usage
+
+
 def _call_gemini(model: str, frames: list[Frame], frame_dir: Path, api_key: str | None = None,
                  language: str = "en") -> tuple[VisualAssessment, Usage]:
     from google import genai
@@ -229,6 +260,7 @@ CALLERS: dict[str, Callable[..., tuple[VisualAssessment, Usage]]] = {
     "anthropic": _call_anthropic,
     "openai": _call_openai,
     "gemini": _call_gemini,
+    "ollama": _call_ollama,
 }
 
 
@@ -364,4 +396,9 @@ def list_vision_models(name: str, api_key: str) -> list[str]:
             if "gemini" in short and "generateContent" in (m.supported_actions or []) and not any(s in short for s in _GEMINI_SKIP):
                 keep.append(short)
         return _rank(keep, ("flash",))  # flash models carry the free tier
+    if name == "ollama":
+        from openai import OpenAI
+
+        # whatever has been pulled; Ollama does not say which models take images
+        return sorted(m.id for m in OpenAI(base_url=_ollama_base(), api_key="ollama", timeout=30).models.list())
     raise ValueError(f"unknown provider: {name}")

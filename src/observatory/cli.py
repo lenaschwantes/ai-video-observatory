@@ -79,7 +79,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
-FREE_PROVIDERS = ("groq", "gemini", "sightengine", "hive")
+FREE_PROVIDERS = ("groq", "gemini", "ollama", "sightengine", "hive")
 
 
 def cmd_bench(args: argparse.Namespace) -> int:

@@ -91,6 +91,21 @@ When a provider's daily cap runs out, the run stops cleanly instead of filling t
 
 Suggested order, so each day adds a usable result: the main benchmark on Groq first, then the robustness run with `--limit 10` (`--variant all`), then the rest of the dataset.
 
+### Open models: on your machine or a free cloud GPU
+
+The `ollama` provider runs an open vision model through [Ollama](https://ollama.com), with no key and no quota. It adds a row the hosted APIs cannot: how a model anyone can run at home compares with the commercial ones.
+
+- **On a free cloud GPU (recommended):** [`notebooks/benchmark_on_kaggle.ipynb`](notebooks/benchmark_on_kaggle.ipynb) installs Ollama on Kaggle's free T4, pulls the model, runs the whole benchmark (re-compression included) and hands back `benchmark_results.zip`. Unzip it into your clone and run `observatory bench report`. If YouTube blocks downloads from Kaggle, run `bench prepare --variants all` at home and upload `eval/cache` as a dataset: only the frames travel.
+- **On your own machine:** worth it with a GPU of about 8 GB or more; on a CPU each video takes minutes.
+
+```bash
+ollama pull qwen2.5vl:7b                                      # any vision model from ollama.com
+pip install -e ".[detect,bench,local]"
+OLLAMA_HOST=localhost:11434 observatory bench run --provider ollama --model qwen2.5vl:7b --variant all
+```
+
+Setting `OLLAMA_HOST` and `OLLAMA_VISION_MODEL` also makes a self-hosted site use the open model for its own analyses. It is never offered in the visitors' key form: the server must not call addresses a visitor types.
+
 ### Robustness to re-compression
 
 Platforms re-encode every upload, and vendors never say what that does to their detectors. The benchmark re-encodes each video and scores every version on frames taken at the **same instants** (ffmpeg exact seek), so compression is the only difference:

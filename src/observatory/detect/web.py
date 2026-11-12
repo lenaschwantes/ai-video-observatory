@@ -32,7 +32,7 @@ from observatory.detect.fetch import MAX_BYTES, VIDEO_SUFFIXES, FetchError, chec
 from observatory.detect.models import Report
 from observatory.detect.pipeline import AI_THRESHOLD, HUMAN_THRESHOLD, analyze, analyze_file, load_report
 from observatory.detect.vision import (
-    PROVIDERS,
+    BYOK_PROVIDERS,
     VisionQuotaError,
     assess,
     assess_with,
@@ -278,7 +278,7 @@ def _home(request: Request, error: str | None = None, status_code: int = 200) ->
          "analyzer_url": ANALYZER_URL, "hero_example": HERO_EXAMPLE,
          "hero_example_local": (REPORTS_DIR / HERO_EXAMPLE["slug"] / "report.json").exists(),
          "prefill_url": _prefill(request),
-         "error": error, "limit": PER_IP_DAILY, "providers": PROVIDERS},
+         "error": error, "limit": PER_IP_DAILY, "providers": BYOK_PROVIDERS},
         status_code,
     )
 
@@ -394,11 +394,11 @@ def _parse_byok(provider: str, model: str, key: str, pt: bool) -> BYOK | None:
     key = (key or "").strip()
     if not key:
         return None
-    if provider not in PROVIDERS:
+    if provider not in BYOK_PROVIDERS:
         raise ValueError("Escolha um provedor." if pt else "Pick a provider.")
     if not 10 <= len(key) <= 300 or any(c.isspace() for c in key):
         raise ValueError("Essa chave não parece válida." if pt else "That key does not look valid.")
-    model = (model or "").strip() or PROVIDERS[provider].default_model or ""
+    model = (model or "").strip() or BYOK_PROVIDERS[provider].default_model or ""
     if not model:
         raise ValueError("Informe o modelo para esse provedor." if pt else "Enter the model for this provider.")
     return BYOK(provider, model, key)
@@ -602,7 +602,7 @@ def check_key(request: Request, provider: str = Form(""), api_key: str = Form(""
     returned, logged or stored."""
     pt = _lang(request) == "pt"
     key = (api_key or "").strip()
-    if provider not in PROVIDERS:
+    if provider not in BYOK_PROVIDERS:
         return JSONResponse({"ok": False, "error": "Escolha um provedor." if pt else "Pick a provider."}, status_code=400)
     if not 10 <= len(key) <= 300 or any(c.isspace() for c in key):
         return JSONResponse({"ok": False, "error": "Essa chave não parece válida." if pt else "That key does not look valid."},
